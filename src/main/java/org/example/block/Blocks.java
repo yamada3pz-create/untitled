@@ -1,70 +1,76 @@
 package org.example.block;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import org.example.Main;
 import org.example.core.ResourceManager;
 
+import java.awt.*;
 import java.io.File;
 import java.io.FileReader;
-import java.util.HashMap;
-import java.util.Map;
+import java.sql.ResultSet;
+import java.util.*;
+import java.util.List;
 
 public class Blocks {
-
-    private static final Gson gson = new Gson();
-
-    // Главный реестр всех блоков игры
-    private static final Map<String, Block> REGISTRY = new HashMap<>();
 
     // Статические ссылки на базовые блоки для быстрого доступа в коде
     public static Block AIR;
     public static Block GRASS;
     public static Block STONE;
+    public static Block SAND;
+    public static Block PIPE;
+    public static Block CHEST;
+    public static Block MACHINE;
     /**
      * Этот метод запускается один раз при старте игры
      */
-    public static void registerAll(){
-        AIR = register(new Block("vanilla:air"));
-        GRASS = register(new Block("vanilla:grass"));
-        STONE = register(new Block("vanilla:stone"));
+    public static void register(){
 
-        loadBlockProperties();
+        AIR     = register(0, "air",   BlockProperties.create().solid(false).color(new Color(0,0,0,0)));
+        GRASS   = register(1, "grass", BlockProperties.create().solid(true).destroyTime(0.5f).color(new Color(50,150,50)));
+        STONE   = register(2, "stone", BlockProperties.create().solid(true).destroyTime(1.5f).color(Color.GRAY));
+        SAND    = register(3, "sand",  BlockProperties.create().solid(true).destroyTime(0.5f).color(new Color(210,200,140)));
+        PIPE    = register(4, "pipe",  BlockProperties.create().solid(false).color(Color.DARK_GRAY).hasRotation(true).connectsToTags("pipe", "pump").hasBlockEntity(true));
+        CHEST   = register(5, "chest", BlockProperties.create().solid(true).destroyTime(0.8f).color(new Color(139,90,43)).hasBlockEntity(true));
+        MACHINE = register(6, "machine", BlockProperties.create().solid(true).destroyTime(1.0f).color(Color.ORANGE).hasRotation(true));
+
+
+
+        System.out.println("[Blocks] Все базовые блоки успешно зарегистрированы.");
     }
 
-    private static Block register(Block block){
-        REGISTRY.put(block.getId(), block);
+    private static Block register(int globalId, String name, BlockProperties properties){
+        Block block = new Block(globalId, name, properties);
+        REGISTRY[globalId] = block;
         return block;
     }
+    // Простой массив - индекс = globalId (максимум 266 блоков)
+    private static final Block[] REGISTRY = new Block[256];
 
-    private static void loadBlockProperties() {
-        for(Block block : REGISTRY.values()){
-            // Убирает префикс "vanilla:" для имени файла (получается "grass")
-            String pureName = block.getId().replace("vanilla:","");
-            String jsonPath = ResourceManager.getBlockJsonPath(pureName);
-            File jsonFile = new File(jsonPath);
 
-            if(jsonFile.exists()){
-                try{
-                    FileReader reader = new FileReader(jsonFile);
-                        // Магия Gson: обновляем свойства созданного Java-объекта данными из JSON!
-                        Block loaderDate = gson.fromJson(reader,Block.class);
 
-                        // Переносим настройки из файла в наш зарегистрированный блок
-                        // (Или можно переписать класс так, чтобы Gson сразу создавал объект)
-                        // Для простоты примера:
-                        // block.setProperties(loadedData);
-                         System.out.println("[Registry] Блок " + block.getId() + " успешно настроен из JSON.");
-
-                    }catch(Exception e){
-                        System.out.println("[Registry] Ошибка чтения JSON для " + block.getId() + ": " + e.getMessage());
-                    }
-                }else {
-                System.out.println("[Registry] Предупреждение: JSON файл не найден для " + block.getId() + ". Используются дефолтные настройки.");
-            }
-        }
-    }
 
     // Получить блок по его id
+    public static Block get(int globalId){
+        if(globalId < 0 || globalId >= REGISTRY.length || REGISTRY[globalId] == null){
+            return AIR;
+        }
+        return REGISTRY[globalId];
+    }
+
     public static Block get(String id){
-        return REGISTRY.getOrDefault(id, AIR);
+        for (int i = 0; i < REGISTRY.length; i++) {
+            if(REGISTRY[i] != null && REGISTRY[i].getId().equals(id)){
+                return REGISTRY[i];
+            }
+        }
+        return AIR;
+    }
+
+    public static int getGlocalId(String id){
+        Block block = get(id);
+        return block.getGlobalId();
     }
 }

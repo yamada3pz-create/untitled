@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "rotation=0,connections=north,south": {"texture": "pipe_ns"},
+    "rotation=90,connections=east,west": { "texture": "pipe_ew" },
+    "rotation=0,connections=north,east,south,west": { "texture": "pipe_cross" }
+  }
+}

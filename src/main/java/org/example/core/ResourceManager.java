@@ -104,4 +104,8 @@ public class ResourceManager {
     public static void clearCache(){
         textureCache.clear();
     }
+
+    public static String getBlockstatePath(String blockName){
+        return DATA_PATH + File.separator + "blockstate" + File.separator + blockName + ".json";
+    }
 }

@@ -1,0 +1,7 @@
+{
+  "id": "vanilla:pipe",
+  "name": "Pipe",
+  "isSolid": false,
+  "hasRotation":true,
+  "connectsToTags": ["pipe","pump"]
+}
