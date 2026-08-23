@@ -15,7 +15,7 @@ public class MenuState extends GameState {
     };
 
     @Override
-    public void update() {
+    public void update(float dt) {
         // В меню ничего не обновляется каждый кадр
     }
 

@@ -8,6 +8,7 @@ public class Camera {
     private float zoom = 2.0f; // Масштаб (зум)
     private int screenWidth, screenHeight;// Размер экрана
 
+
     public Camera(int screenWidth, int screenHeight){
         this.screenWidth = screenWidth;
         this.screenHeight = screenHeight;
@@ -48,5 +49,11 @@ public class Camera {
     public void setScreenSize(int width, int height){
         this.screenWidth = width;
         this.screenHeight = height;
+    }
+    public float screenToWorldX(float screenX){
+        return screenX / zoom + x;
+    }
+    public float screenToWorldY(float screenY){
+        return screenY / zoom + y;
     }
 }

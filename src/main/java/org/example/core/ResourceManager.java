@@ -18,6 +18,7 @@ public class ResourceManager {
 
     //Кэш для загруженных картинок (чтобы не читать диск каждый раз)
     private static final Map<String, BufferedImage> textureCache = new HashMap<>();
+    private static final Map<Integer, BufferedImage> blockTextureCache = new HashMap<>();
     /**
      * Инициализация структуры папок при старте игры.
      * Если папок нет, игра сама их создаст.
@@ -61,6 +62,20 @@ public class ResourceManager {
         }
         return null;
     }
+
+    /**
+     * текстура блока по globalId. Отсутствие текстуры тоже кэшируется,
+     * чтобы не проверять диск каждый кадр
+     */
+    public static BufferedImage getBlockTexture(int globalId, String blockName){
+        if(blockTextureCache.containsKey(globalId)){
+            return blockTextureCache.get(globalId);
+        }
+        BufferedImage image = loadTextures(getBlockTexturePath(blockName));
+        blockTextureCache.put(globalId, image);
+        return image;
+    }
+
     /**
      * Возвращать путь к текстурам блока.
      */
@@ -103,6 +118,7 @@ public class ResourceManager {
      */
     public static void clearCache(){
         textureCache.clear();
+        blockTextureCache.clear();
     }
 
     public static String getBlockstatePath(String blockName){

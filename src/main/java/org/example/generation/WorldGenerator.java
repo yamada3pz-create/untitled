@@ -8,67 +8,57 @@ public class WorldGenerator {
     private long seed;
 
     public WorldGenerator(Long seed){
-
         this.seed = seed;
         PerlinNoise.setSeed(seed);
     }
 
-    // Заполнить чанк блоками на основе шума
     public void generateChunk(Chunk chunk) {
         for (int y = 0; y < Chunk.SIZE; y++) {
             for (int x = 0; x < Chunk.SIZE; x++) {
-                int worldX = chunk.getWorldX(x);
-                int worldY = chunk.getWorldY(y);
+                int wx = chunk.getWorldX(x);
+                int wy = chunk.getWorldY(y);
 
-                // Перлин-шум вместо старого хеша
-                double temp  = PerlinNoise.getTemperature(worldX * 0.01, worldY * 0.01);
-                double humid = PerlinNoise.getHumidity(worldX * 0.015, worldY * 0.015);
-
-                // Приводим к [0..1]
+                // Пол по температуре и влажности
+                double temp  = PerlinNoise.getTemperature(wx * 0.01, wy * 0.01);
+                double humid = PerlinNoise.getHumidity(wx * 0.015, wy * 0.015);
                 float tempF  = (float) ((temp + 1.0) * 0.5);
                 float humidF = (float) ((humid + 1.0) * 0.5);
+                chunk.setFloorId(x, y, selectFloor(tempF, humidF));
 
-                int blockId = selectBlock(tempF, humidF);
-                chunk.setBlockId(x, y, blockId);
+                // Руда: отдельный шум, редкие пятна выше порога
+                double ore = PerlinNoise.getOre(wx * 0.11, wy * 0.11);
+                float oreF = (float) ((ore + 1.0) * 0.5);
+                if (oreF > 0.72f) {
+                    chunk.setOreId(x, y, selectOre(wx, wy));
+                }
+
+                // Валуны: очень редко, не поверх руды
+                if (chunk.getOreId(x, y) == Blocks.AIR.getGlobalId()
+                        && hash(wx, wy, 777) < 0.02f) {
+                    chunk.setObjectId(x, y, Blocks.WALL.getGlobalId());
+                }
             }
         }
+        chunk.setGenerated(true);
     }
 
-    // Выбор блока по температуре и влажности
-    private int selectBlock(float temp, float humid) {
-        if (temp > 0.6f && humid < 0.4f) {
-            return Blocks.SAND.getGlobalId();
-        }
-        if (temp < 0.3f) {
-            return Blocks.STONE.getGlobalId();
-        }
+    private int selectFloor(float temp, float humid) {
+        if (temp > 0.6f && humid < 0.4f) return Blocks.SAND.getGlobalId();
+        if (temp < 0.3f)                 return Blocks.STONE.getGlobalId();
         return Blocks.GRASS.getGlobalId();
     }
-    // --- Простой шум ---
 
-    // Возвращает число от 0.0 до 1.0 для координат (x, y)
-    private float getNoise(double x, double y, int offset) {
-        int ix = (int) Math.floor(x);
-        int iy = (int) Math.floor(y);
-        double fx = x - ix;
-        double fy = y - iy;
-
-        // Значения в четырёх углах клетки
-        float v00 = hash(ix,     iy,     offset);
-        float v10 = hash(ix + 1, iy,     offset);
-        float v01 = hash(ix,     iy + 1, offset);
-        float v11 = hash(ix + 1, iy + 1, offset);
-
-        // Плавное среднее между ними
-        float v0 = v00 + (float)(fx * (v10 - v00));
-        float v1 = v01 + (float)(fx * (v11 - v01));
-        return v0 + (float)(fy * (v1 - v0));
+    private int selectOre(int wx, int wy) {
+        // Тип руды по стабильному хешу координат: медь чуть чаще железа
+        return hash(wx, wy, 555) < 0.55f
+                ? Blocks.IRON_ORE.getGlobalId()
+                : Blocks.COPPER_ORE.getGlobalId();
     }
 
-    // Превращает координаты (x, y) в число от 0.0 до 1.0
+    // Детерминированный хеш точки в [0..1], зависит от seed
     private float hash(int x, int y, int offset) {
-        long n = (long)(x * 374761393 + y * 668265263 + seed * 1274126177 + offset * 1000003);
-        n = (n ^ (n >> 13)) * 1274126177;
+        long n = (long)(x * 374761393L + y * 668265263L + seed * 1274126177L + offset * 1000003L);
+        n = (n ^ (n >> 13)) * 1274126177L;
         n = n ^ (n >> 16);
         return (float)((n & 0x7FFFFFFFL) / (double) 0x7FFFFFFFL);
     }

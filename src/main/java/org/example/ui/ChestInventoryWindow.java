@@ -1,8 +1,7 @@
 package org.example.ui;
 
 import org.example.inventory.Container;
-
-import java.awt.*;
+import org.example.ui.widgets.SlotWidget;
 
 public class ChestInventoryWindow extends GuiWindow {
 

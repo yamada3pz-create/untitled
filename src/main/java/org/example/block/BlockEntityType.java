@@ -47,6 +47,7 @@ public class BlockEntityType {
     public static void init(){
         register("chest");
         register("pipe");
+        register("machine");
         System.out.println("[BlockEntityType] Типы зарегистрированы.");
     }
 }

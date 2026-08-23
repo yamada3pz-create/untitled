@@ -1,5 +1,6 @@
 package org.example.world;
 
+import org.example.PlayingState;
 import org.example.block.BlockEntity;
 import org.example.block.Blocks;
 
@@ -13,43 +14,63 @@ public class Chunk {
     private final int chunkX;
     private final int chunkY;
 
-    private final int[] blockIds = new int[SIZE * SIZE];    // globalId блока
-    private final int[] blockStates = new int[SIZE * SIZE];  // ID состояния
+    private final int[] floorIds    = new int[SIZE * SIZE];
+    private final int[] oreIds      = new int[SIZE * SIZE];
+    private final int[] objectIds    = new int[SIZE * SIZE];  // globalId блока
+    private final int[] objectStates = new int[SIZE * SIZE];  // ID состояния
+
+
 
     private final HashMap<Long, BlockEntity> blockEntity = new HashMap<>();
     private boolean dirty;
+    private boolean generated; // Заполнение ли
 
     public Chunk(int chunkX,int chunkY){
         this.chunkX = chunkX;
         this.chunkY = chunkY;
-
-        // Заполняем воздухом
-        for (int i = 0; i < SIZE * SIZE; i++) {
-            blockIds[i] = Blocks.AIR.getGlobalId();
-            blockStates[i] = 0;
-        }
-    }
-    // --- Доступ по локальным координатам (0-15) ---
-
-    public int getBlockId(int localX, int localY){
-        if (!inBounds(localX,localY)) return Blocks.AIR.getGlobalId();
-        return blockIds[localY * SIZE + localX];
     }
 
-    public void setBlockId(int localX, int localY, int globalId){
+    // --- Пол ---
+    public int getFloorId(int localX, int localY){
+        if(!inBounds(localX,localY)) return Blocks.AIR.getGlobalId();
+        return floorIds[localY * SIZE + localX];
+    }
+    public void setFloorId(int localX, int localY, int globalId){
         if(!inBounds(localX,localY)) return;
-        blockIds[localY * SIZE + localX] = globalId;
+        floorIds[localY * SIZE + localX] = globalId;
         dirty = true;
     }
 
-    public int getBlockState(int localX, int localY) {
-        if (!inBounds(localX, localY)) return 0;
-        return blockStates[localY * SIZE + localX];
+    // --- Руда ---
+    public int getOreId(int localX, int localY){
+        if(!inBounds(localX,localY)) return Blocks.AIR.getGlobalId();
+        return oreIds[localY * SIZE + localX];
+    }
+    public void setOreId(int localX, int localY, int globalId){
+        if(!inBounds(localX,localY)) return;
+        oreIds[localY * SIZE + localX] = globalId;
+        dirty = true;
     }
 
-    public void setBlockState(int localX, int localY, int state) {
-        if (!inBounds(localX, localY)) return;
-        blockStates[localY * SIZE + localX] = state;
+    // --- Объекты ---
+
+    public int getObjectId(int localX, int localY){
+        if(!inBounds(localX,localY)) return Blocks.AIR.getGlobalId();
+        return objectIds[localY * SIZE + localX];
+    }
+    public void setObjectId(int localX, int localY, int globalId){
+        if(!inBounds(localX,localY)) return;
+        objectIds[localY * SIZE + localX] = globalId;
+        dirty = true;
+    }
+
+    public int getObjectState(int localX, int localY){
+        if(!inBounds(localX,localY)) return 0;
+        return objectStates[localY * SIZE + localX];
+    }
+    public void setObjectState(int localX, int localY, int state){
+        if(!inBounds(localX,localY)) return;
+        objectStates[localY * SIZE + localX] = state;
         dirty = true;
     }
 
@@ -65,23 +86,24 @@ public class Chunk {
 
     public boolean isDirty() { return dirty; }
     public void setDirty(boolean dirty) { this.dirty = dirty; }
+    public boolean isGenerated() { return generated; }
+    public void setGenerated(boolean gen) { this.generated = gen; }
 
-    // --- Доступ к сырым массивам (для сохранения/загрузки) ---
+    // --- Сырые массивы (для сохранения/загрузки) ---
 
-    public int[] getBlockIds()    { return blockIds; }
-    public int[] getBlockStates() { return blockStates; }
+    public int[] getFloorIds()     { return floorIds; }
+    public int[] getOreIds()       { return oreIds; }
+    public int[] getObjectIds()    { return objectIds; }
+    public int[] getObjectStates() { return objectStates; }
 
-    public void setBlockIds(int[] ids) {
-        for (int i = 0; i < SIZE * SIZE && i < ids.length; i++) {
-            blockIds[i] = ids[i];
+    public void setLayers(int[] floor, int[] ore,  int[] object, int[] states){
+        for (int i = 0; i < SIZE * SIZE; i++) {
+            floorIds[i]     = floor[i];
+            oreIds[i]       = ore[i];
+            objectIds[i]    = object[i];
+            objectStates[i] = states[i];
         }
         dirty = true;
-    }
-
-    public void setBlockStates(int[] states) {
-        for (int i = 0; i < SIZE * SIZE && i < states.length; i++) {
-            blockStates[i] = states[i];
-        }
     }
 
     // --- Утилита ---

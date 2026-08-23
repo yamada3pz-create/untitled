@@ -1,9 +1,8 @@
-package org.example.ui;
+package org.example.ui.widgets;
 
-import javax.swing.plaf.basic.BasicOptionPaneUI;
 import java.awt.*;
 
-public class ButtonWidget extends Widget{
+public class ButtonWidget extends Widget {
 
     private String text;
     private Color bgColor;

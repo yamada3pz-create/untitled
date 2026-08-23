@@ -1,9 +1,9 @@
-package org.example.ui;
+package org.example.ui.widgets;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
 
-public class IconWidget extends Widget{
+public class IconWidget extends Widget {
 
     private BufferedImage image;
 

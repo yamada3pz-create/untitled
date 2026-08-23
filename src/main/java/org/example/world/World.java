@@ -6,14 +6,14 @@ import org.example.block.BlockEntity;
 import org.example.block.Blocks;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 public class World {
 
-    // Список загруженных чанков ( как массив, но размер растет сам)
-    private ArrayList<Chunk> chunks = new ArrayList<>();
+    // Загруженные чанки: ключ = упакованные координаты чанка
+    private HashMap<Long, Chunk> chunks = new HashMap<>();
     private String savePath;
 
     public World(String worldName){
@@ -21,50 +21,66 @@ public class World {
         new File(savePath).mkdirs();
     }
 
+    // Упаковка координат чанка в один ключ (координаты бывают отрицательными!)
+    private long chunkKey(int chunkX, int chunkY){
+        return ((long) chunkY << 32) | (chunkX & 0xFFFFFFFFL);
+    }
+
     // --- Получаем чанки ---
 
-    // Найти или создать чанки по координатам чанка
+    // Найти или создать чанк по координатам чанка
     public Chunk getChunk(int chunkX, int chunkY){
-        // Ищем среди загруженных
-        for(int i = 0; i < chunks.size(); i++){
-            Chunk c = chunks.get(i);
-            if(c.getChunkX() == chunkX && c.getChunkY() == chunkY){
-                return c;
-            }
-        }
+        long key = chunkKey(chunkX, chunkY);
+
+        // Ищем среди загруженных — O(1)
+        Chunk found = chunks.get(key);
+        if(found != null) return found;
 
         // Пробуем загрузить из файла
-        Chunk loader = loadChunk(chunkX, chunkY);
-        if(loader != null){
-            chunks.add(loader);
-            return loader;
+        Chunk loaded = loadChunk(chunkX, chunkY);
+        if(loaded == null){
+            loaded = new Chunk(chunkX, chunkY);   // файла нет — пустой
         }
-        // Файла нет - создает пустой
-        Chunk newChunk = new Chunk(chunkX, chunkY);
-        chunks.add(newChunk);
-        return newChunk;
+        chunks.put(key, loaded);
+        return loaded;
     }
 
-    // --- Доступ по мировым координатам ---
+    // --- Доступ по мировым координатам (по слоям) ---
 
-    public int getBlockIdAt(int worldX, int worldY) {
+    public int getFloorIdAt(int worldX, int worldY) {
+        int[] loc = toLocal(worldX, worldY);
+        return getChunk(loc[0], loc[1]).getFloorId(loc[2], loc[3]);
+    }
+
+    public int getOreIdAt(int worldX, int worldY) {
+        int[] loc = toLocal(worldX, worldY);
+        return getChunk(loc[0], loc[1]).getOreId(loc[2], loc[3]);
+    }
+
+    public int getObjectIdAt(int worldX, int worldY) {
+        int[] loc = toLocal(worldX, worldY);
+        return getChunk(loc[0], loc[1]).getObjectId(loc[2], loc[3]);
+    }
+
+    public void setObjectIdAt(int worldX, int worldY, int globalId){
+        int[] loc = toLocal(worldX, worldY);
+        getChunk(loc[0], loc[1]).setObjectId(loc[2], loc[3], globalId);
+    }
+
+    public void setOreIdAt(int worldX, int worldY, int globalId){
+        int[] loc = toLocal(worldX, worldY);
+        getChunk(loc[0], loc[1]).setOreId(loc[2], loc[3], globalId);
+    }
+
+    // Мировые -> [chunkX, chunkY, localX, localY]
+    private int[] toLocal(int worldX, int worldY) {
         int chunkX = Math.floorDiv(worldX, Chunk.SIZE);
         int chunkY = Math.floorDiv(worldY, Chunk.SIZE);
-        int localX = worldX - chunkX * Chunk.SIZE;
-        int localY = worldY - chunkY * Chunk.SIZE;
-        return getChunk(chunkX, chunkY).getBlockId(localX, localY);
-    }
-
-    public void setBlockIdAt(int worldX, int worldY, int globalId){
-        int chunkX = Math.floorDiv(worldX, Chunk.SIZE);
-        int chunkY = Math.floorDiv(worldY, Chunk.SIZE);
-        int localX = worldX - chunkX * Chunk.SIZE;
-        int localY = worldY - chunkY * Chunk.SIZE;
-        getChunk(chunkX,chunkY).setBlockId(localX, localY, globalId);
-    }
-
-    public Block getBlockAt(int worldX, int worldY) {
-        return Blocks.get(getBlockIdAt(worldX, worldY));
+        return new int[]{
+                chunkX, chunkY,
+                worldX - chunkX * Chunk.SIZE,
+                worldY - chunkY * Chunk.SIZE
+        };
     }
 
     // --- Сохранение и загрузка ---
@@ -73,38 +89,37 @@ public class World {
         String path = savePath + "c." + chunk.getChunkX() + "." + chunk.getChunkY() + ".dat";
         try{
             DataOutputStream out = new DataOutputStream(new FileOutputStream(path));
-            int[] ids = chunk.getBlockIds();
-            int[] states = chunk.getBlockStates();
 
-            int entityCount = chunk.getBlockEntityCount();
-            out.writeInt(entityCount);
-
-            HashMap<Long, BlockEntity> entities = chunk.getAllBlockEntities();
-            for (Map.Entry<Long, BlockEntity> entry : entities.entrySet()){
+            // Сначала энтити
+            out.writeInt(chunk.getBlockEntityCount());
+            for (Map.Entry<Long, BlockEntity> entry : chunk.getAllBlockEntities().entrySet()){
                 long key = entry.getKey();
                 BlockEntity entity = entry.getValue();
 
-                int localX = (int) (key & 0xFFFF);
-                int localY = (int) (key >> 16);
-
-                out.writeInt(localX);
-                out.writeInt(localY);
+                out.writeInt((int) (key & 0xFFFF));
+                out.writeInt((int) (key >> 16));
                 out.writeUTF(entity.getType());
                 entity.save(out);
             }
+            // Потом четыре слоя одним проходом
+            int[] floor  = chunk.getFloorIds();
+            int[] ore    = chunk.getOreIds();
+            int[] object = chunk.getObjectIds();
+            int[] states = chunk.getObjectStates();
             for (int i = 0; i < Chunk.SIZE * Chunk.SIZE; i++) {
-                out.writeInt(ids[i]);
+                out.writeInt(floor[i]);
+                out.writeInt(ore[i]);
+                out.writeInt(object[i]);
                 out.writeInt(states[i]);
-
             }
             out.close();
+            chunk.setDirty(false);
             System.out.println("[World] Сохранение чанка " + chunk.getChunkX() + "," + chunk.getChunkY());
         }catch (Exception e){
             System.out.println("[World] Ошибка сохранения: " + e.getMessage());
         }
     }
 
-    // Загрузка чанка из файла (возвращает null если файлы нет)
     public Chunk loadChunk(int chunkX, int chunkY){
         String path = savePath + "c." + chunkX + "." + chunkY + ".dat";
         File file = new File(path);
@@ -114,7 +129,10 @@ public class World {
         try {
             Chunk chunk = new Chunk(chunkX,chunkY);
             DataInputStream in = new DataInputStream(new FileInputStream(path));
-            int[] ids = new int[Chunk.SIZE * Chunk.SIZE];
+
+            int[] floor  = new int[Chunk.SIZE * Chunk.SIZE];
+            int[] ore    = new int[Chunk.SIZE * Chunk.SIZE];
+            int[] object = new int[Chunk.SIZE * Chunk.SIZE];
             int[] states = new int[Chunk.SIZE * Chunk.SIZE];
 
             int entityCount = in.readInt();
@@ -129,11 +147,13 @@ public class World {
                 }
             }
             for (int i = 0; i < Chunk.SIZE * Chunk.SIZE; i++) {
-                ids[i] = in.readInt();
+                floor[i]  = in.readInt();
+                ore[i]    = in.readInt();
+                object[i] = in.readInt();
                 states[i] = in.readInt();
             }
-            chunk.setBlockIds(ids);
-            chunk.setBlockStates(states);
+            chunk.setLayers(floor, ore, object, states);
+            chunk.setGenerated(true);
             in.close();
             System.out.println("[World] Загружен чанк " + chunkX + "," + chunkY);
             return chunk;
@@ -145,8 +165,7 @@ public class World {
 
     // Сохранить все чанки, которые изменились
     public void saveAll() {
-        for (int i = 0; i < chunks.size(); i++) {
-            Chunk c = chunks.get(i);
+        for (Chunk c : chunks.values()) {
             if (c.isDirty()) {
                 saveChunk(c);
             }
@@ -158,19 +177,18 @@ public class World {
         int pcx = (int) Math.floor(playerX / Chunk.SIZE);
         int pcy = (int) Math.floor(playerY / Chunk.SIZE);
 
-        ArrayList<Chunk> toRemove = new ArrayList<Chunk>();
-        for (int i = 0; i < chunks.size(); i++) {
-            Chunk c = chunks.get(i);
+        Iterator<HashMap.Entry<Long, Chunk>> it = chunks.entrySet().iterator();
+        while (it.hasNext()) {
+            Chunk c = it.next().getValue();
             int dx = Math.abs(c.getChunkX() - pcx);
             int dy = Math.abs(c.getChunkY() - pcy);
             if (dx > radius || dy > radius) {
                 if (c.isDirty()) {
                     saveChunk(c);
                 }
-                toRemove.add(c);
+                it.remove();   // безопасное удаление во время обхода
             }
         }
-        chunks.removeAll(toRemove);
     }
 
     public int getLoadedCount() {
@@ -178,16 +196,24 @@ public class World {
     }
 
     public BlockEntity getBlockEntityAt(int worldX, int worldY) {
-        int chunkX = Math.floorDiv(worldX, Chunk.SIZE);
-        int chunkY = Math.floorDiv(worldY, Chunk.SIZE);
-        int localX = worldX - chunkX * Chunk.SIZE;
-        int localY = worldY - chunkY * Chunk.SIZE;
-        return getChunk(chunkX, chunkY).getBlockEntity(localX, localY);
+        int[] loc = toLocal(worldX, worldY);
+        return getChunk(loc[0], loc[1]).getBlockEntity(loc[2], loc[3]);
     }
-    // Вызывает tick() у всех BlockEntity в чанке
+
+    public void setBlockEntityAt(int worldX, int worldY, BlockEntity entity) {
+        int[] loc = toLocal(worldX, worldY);
+        getChunk(loc[0], loc[1]).setBlockEntity(loc[2], loc[3], entity);
+    }
+
+    public void removeBlockEntityAt(int worldX, int worldY) {
+        int[] loc = toLocal(worldX, worldY);
+        getChunk(loc[0], loc[1]).removeBlockEntity(loc[2], loc[3]);
+    }
+
     public void tickBlockEntity() {
-        for(int i = 0; i < chunks.size(); i++){
-            chunks.get(i).tickBlockEntity();
+        for (Chunk c : chunks.values()) {
+            c.tickBlockEntity();
         }
     }
 }
+

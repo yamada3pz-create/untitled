@@ -20,7 +20,7 @@ public abstract class GameState {
     public void exit() {}
 
     // Логика каждый кадр
-    public abstract void update();
+    public abstract void update(float dt);
 
     // Отрисовка
     public abstract void render(Graphics2D g2d);

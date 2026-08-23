@@ -1,5 +1,8 @@
 package org.example.ui;
 
+import org.example.ui.widgets.ButtonWidget;
+import org.example.ui.widgets.Widget;
+
 import java.awt.*;
 import java.util.ArrayList;
 

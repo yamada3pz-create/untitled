@@ -1,4 +1,4 @@
-package org.example.ui;
+package org.example.ui.widgets;
 
 import java.awt.*;
 import org.example.inventory.Container;
@@ -6,7 +6,7 @@ import org.example.inventory.SimpleContainer;
 import org.example.item.Item;
 import org.example.item.ItemStack;
 
-public class SlotWidget extends Widget{
+public class SlotWidget extends Widget {
 
     private final Container container;
     private final int slotIndex;

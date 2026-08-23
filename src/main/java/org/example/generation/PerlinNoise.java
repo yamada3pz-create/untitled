@@ -7,6 +7,7 @@ public class PerlinNoise {
     private static double seedX, seedY;
     private static double tempSeedX, tempSeedY;
     private static double humSeedX, humSeedY;
+    private static double oreSeedX, oreSeedY;
 
     public static void setSeed(long seed){
         Random r = new Random(seed);
@@ -14,6 +15,7 @@ public class PerlinNoise {
         seedY = r.nextDouble() * 100000;
         tempSeedX = r.nextDouble() * 100000; tempSeedY = r.nextDouble() * 100000;
         humSeedX  = r.nextDouble() * 100000; humSeedY  = r.nextDouble() * 100000;
+        oreSeedX = r.nextDouble() * 100000; oreSeedY = r.nextDouble() * 100000;
     }
     public static double noise(double x, double y) {
         x += seedX; y += seedY;
@@ -85,5 +87,8 @@ public class PerlinNoise {
             f *= 2;
         }
         return v;
+    }
+    public static double getOre(double x, double y){
+        return noiseAt(x, y, oreSeedX, oreSeedY);
     }
 }

@@ -1,8 +1,8 @@
-package org.example.ui;
+package org.example.ui.widgets;
 
 import java.awt.*;
 
-public class LabelWidget extends Widget{
+public class LabelWidget extends Widget {
 
     private String text;
     private Color color;

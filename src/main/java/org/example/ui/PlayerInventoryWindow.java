@@ -1,6 +1,8 @@
 package org.example.ui;
 
 import org.example.inventory.Container;
+import org.example.ui.widgets.SlotWidget;
+
 
 public class PlayerInventoryWindow extends GuiWindow{
 

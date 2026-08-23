@@ -17,6 +17,6 @@ public class Item {
     }
 
     public String getId() { return id; }
-    public String fetName() { return name; }
+    public String getName() { return name; }
     public int  getMaxStackSize() { return maxStackSize; }
 }

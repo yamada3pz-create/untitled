@@ -1,4 +1,4 @@
-package org.example.ui;
+package org.example.ui.widgets;
 
 import java.awt.*;
 

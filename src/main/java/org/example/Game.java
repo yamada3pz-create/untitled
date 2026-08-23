@@ -79,13 +79,21 @@ public class Game extends JPanel implements Runnable {
         if (currentState != null) currentState.enter(this);
     }
 
+    // Игровой цикл
     @Override
     public void run() {
+        long lastTime = System.nanoTime();
         while (inGame) {
-            if (currentState != null) currentState.update();
+            long nowTime = System.nanoTime();
+
+            float dt = (nowTime - lastTime) / 1_000_000_000f;
+            lastTime = nowTime;
+
+            if (currentState != null) currentState.update(dt);
             repaint();
+            long elapsed = (System.nanoTime() - nowTime) / 1_000_000;
             try {
-                Thread.sleep(1000 / 60);
+                Thread.sleep(Math.max(0, 16 - elapsed));
             } catch (Exception e) {
                 e.printStackTrace();
             }
