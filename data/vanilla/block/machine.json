@@ -1,0 +1,11 @@
+{
+  "type": "Block",
+  "id": "machine",
+  "name": "Машина",
+  "layer": "object",
+  "isSolid": true,
+  "hasRotation": true,
+  "infinite": false,
+  "destroyTime": 1.0,
+  "drops": "machine"
+}

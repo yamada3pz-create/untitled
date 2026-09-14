@@ -1,0 +1,6 @@
+{
+  "id": "machine",
+  "name": "Машина",
+  "maxStackSize": 64,
+  "placeBlock": "machine"
+}

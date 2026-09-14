@@ -1,0 +1,11 @@
+{
+  "type": "Block",
+  "id": "chest",
+  "name": "Сундук",
+  "layer": "object",
+  "isSolid": true,
+  "hasBlockEntity": true,
+  "infinite": false,
+  "destroyTime": 0.8,
+  "drops": "chest"
+}

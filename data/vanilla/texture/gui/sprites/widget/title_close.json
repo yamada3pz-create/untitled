@@ -1,0 +1,6 @@
+{
+  "title_close": {
+    "texture": "gui/sprites/widget/title_close",
+    "scaling": { "type": "none", "border": 0 }
+  }
+}

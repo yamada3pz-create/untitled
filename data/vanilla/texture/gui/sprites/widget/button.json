@@ -1,0 +1,6 @@
+{
+  "button": {
+    "texture": "gui/sprites/widget/button",
+    "scaling": { "type": "nine_slice", "border": 3 }
+  }
+}

@@ -20,7 +20,7 @@ public class ItemStack {
     public void grow(int amount) { this.count += amount; }
     public void shrink(int amount) { this.count -= amount; }
 
-    public boolean isEmpty() { return item == null || count < 0;}
+    public boolean isEmpty() { return item == null || count <= 0;}
     public int getMaxStackSize() { return item != null ? item.getMaxStackSize() : 64; }
     public boolean isStackable() { return count < getMaxStackSize(); }
     public int getStackLeft() { return getMaxStackSize() - count; }

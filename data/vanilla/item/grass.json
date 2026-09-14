@@ -1,0 +1,6 @@
+{
+  "id": "grass",
+  "name": "Трава",
+  "maxStackSize": 64,
+  "placeBlock": "grass"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "chest",
+  "name": "Сундук",
+  "maxStackSize": 64,
+  "placeBlock": "chest"
+}

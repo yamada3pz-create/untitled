@@ -1,0 +1,6 @@
+{
+  "id": "wall",
+  "name": "Стена",
+  "maxStackSize": 64,
+  "placeBlock": "wall"
+}

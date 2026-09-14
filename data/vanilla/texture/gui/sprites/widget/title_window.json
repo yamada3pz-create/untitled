@@ -1,0 +1,6 @@
+{
+  "title_window": {
+    "texture": "gui/sprites/widget/title_window",
+    "scaling": { "type": "nine_slice", "border": 3 }
+  }
+}

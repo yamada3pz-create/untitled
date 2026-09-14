@@ -1,5 +1,4 @@
 {
-  "name": "grass",
-  "isSolid": true,
-  "texture": "grass"
+  "parent": "base_floor",
+  "id": "grass"
 }

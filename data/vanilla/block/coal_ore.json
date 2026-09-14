@@ -1,0 +1,6 @@
+{
+  "parent": "base_ore",
+  "id": "coal_ore",
+  "name": "Угольная руда",
+  "drops": "coal_ore"
+}

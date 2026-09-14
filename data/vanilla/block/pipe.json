@@ -1,7 +1,12 @@
 {
-  "id": "vanilla:pipe",
-  "name": "Pipe",
+  "type": "Block",
+  "id": "pipe",
+  "name": "Труба",
+  "layer": "object",
   "isSolid": false,
-  "hasRotation":true,
-  "connectsToTags": ["pipe","pump"]
+  "hasRotation": true,
+  "hasBlockEntity": true,
+  "connectsToTags": ["pipe", "pump"],
+  "infinite": false,
+  "drops": "pipe"
 }

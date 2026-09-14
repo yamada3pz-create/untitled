@@ -1,4 +1,9 @@
 {
+  "type": "Block",
+  "id": "air",
   "name": "air",
-  "isSolid": false
+  "layer": "none",
+  "isSolid": false,
+  "infinite": true,
+  "drops": ""
 }

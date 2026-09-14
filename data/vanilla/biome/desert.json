@@ -1,0 +1,11 @@
+{
+  "id": "desert",
+  "minTemperature": 0.9,
+  "maxTemperature": 1.0,
+  "minHumidity": 0.0,
+  "maxHumidity": 0.1,
+  "surfaceBlock": "sand",
+  "ores": {
+    "gold_ore": { "rarity": 0.60, "width": 0.030, "minCount": 1, "maxCount": 3 }
+  }
+}

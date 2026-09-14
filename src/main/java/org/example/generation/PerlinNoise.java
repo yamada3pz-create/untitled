@@ -1,5 +1,7 @@
 package org.example.generation;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 public class PerlinNoise {
@@ -9,6 +11,24 @@ public class PerlinNoise {
     private static double humSeedX, humSeedY;
     private static double oreSeedX, oreSeedY;
 
+    /**
+     * Смещения и масштаб для каждой руды ОТДЕЛЬНО.
+     * Формат: имя руды ("iron", "coal", ...) -> { offsetX, offsetY, scale }.
+     * Благодаря разным offset-ам жилы разных руд НЕ совпадают друг с другом.
+     * Карта универсальная: руда, которой нет в map, создастся автоматически
+     * детерминированно из сида (см. getOreNoise). Очищается при setSeed.
+     */
+    private static final Map<String, double[]> oreSeeds = new HashMap<>();
+
+    // Масштаб шума для конкретных известных руд (чем больше число, тем "чаще" жилы)
+    private static final Map<String, Double> ORE_DEFAULT_SCALE = new HashMap<>();
+    static {
+        ORE_DEFAULT_SCALE.put("iron",   0.035);
+        ORE_DEFAULT_SCALE.put("coal",   0.030);
+        ORE_DEFAULT_SCALE.put("gold",   0.055);
+        ORE_DEFAULT_SCALE.put("copper", 0.040);
+    }
+
     public static void setSeed(long seed){
         Random r = new Random(seed);
         seedX = r.nextDouble() * 100000;
@@ -16,6 +36,10 @@ public class PerlinNoise {
         tempSeedX = r.nextDouble() * 100000; tempSeedY = r.nextDouble() * 100000;
         humSeedX  = r.nextDouble() * 100000; humSeedY  = r.nextDouble() * 100000;
         oreSeedX = r.nextDouble() * 100000; oreSeedY = r.nextDouble() * 100000;
+
+        // Сбрасываем per-ore смещения — их пересоздадим детерминированно
+        // из текущего сида при первом обращении к getOreNoise.
+        oreSeeds.clear();
     }
     public static double noise(double x, double y) {
         x += seedX; y += seedY;
@@ -88,7 +112,40 @@ public class PerlinNoise {
         }
         return v;
     }
-    public static double getOre(double x, double y){
-        return noiseAt(x, y, oreSeedX, oreSeedY);
+
+    /**
+     * Жила-подобный шум для КОНКРЕТНОЙ руды.
+     * Возвращает значение в [0..1]; близкие к 0.5 значения — "ядро" жилы.
+     *
+     * Используются НЕЗАВИСИМЫЕ смещения на каждую руду, поэтому жилы разных
+     * руд не накладываются друг на друга. Имя руды задаётся базовым
+     * ("iron", "coal"), без суффикса "_ore".
+     */
+    public static double getOreNoise(String oreName, double x, double y) {
+        double[] data = oreSeeds.get(oreName);
+        if (data == null) {
+            // Детерминированно создаём смещения для этой руды из базовых ore-сидов
+            Random r = new Random((long) (oreSeedX + oreSeedY) + oreName.hashCode());
+            double scale = ORE_DEFAULT_SCALE.containsKey(oreName)
+                    ? ORE_DEFAULT_SCALE.get(oreName)
+                    : 0.04;
+            data = new double[]{
+                    oreSeedX + r.nextDouble() * 100000,
+                    oreSeedY + r.nextDouble() * 100000,
+                    scale
+            };
+            oreSeeds.put(oreName, data);
+        }
+        double ox = data[0], oy = data[1], scale = data[2];
+
+        // FBM из 3 октав с независимым смещением
+        double v = 0, a = 1, f = 1;
+        for (int i = 0; i < 3; i++) {
+            v += a * noiseAt(x * scale * f, y * scale * f, ox, oy);
+            a *= 0.5;
+            f *= 2;
+        }
+        // Нормализуем из примерно [-1..1] в [0..1]
+        return (v + 1.0) * 0.5;
     }
 }

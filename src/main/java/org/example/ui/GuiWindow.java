@@ -1,55 +1,74 @@
 package org.example.ui;
 
+import org.example.core.NineSliceRenderer;
+import org.example.core.TextureLoader;
+import org.example.item.ItemStack;
 import org.example.ui.widgets.ButtonWidget;
 import org.example.ui.widgets.Widget;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
-public class GuiWindow {
+public class GuiWindow extends Widget {
 
-    protected int x, y, width, height;
     protected String title;
-    protected boolean visible;
     protected boolean dragging;
     protected int dragOffsetX, dragOffsetY;
+    protected boolean closeHovered;
+    protected String bodyTexturePath;
+    protected boolean draggable = true;      // можно ли перетаскивать за title bar
+    protected boolean closeable = true;      // показывать ли крестик и обрабатывать клик по нему
+    protected boolean showTitleBar = true;   // показывать ли полоску заголовка и title-текст
 
     protected ArrayList<Widget> widgets;
-    protected int titleBarHeight = 24;
+    protected int titleBarHeight;
 
     public GuiWindow(int x, int y, int width, int height, String title){
-
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
-        this.title = title;
+        super(x, y, width, height);
         this.visible = false;
+        this.title = title;
         this.dragging = false;
+        this.closeHovered = false;
         this.widgets = new ArrayList<>();
     }
-
 
     public void open() { visible = true; }
     public void close() { visible = false; }
     public boolean isOpen() { return visible; }
+    public GuiWindow setDraggable(boolean v)    { this.draggable = v;    return this; }
+    public GuiWindow setCloseable(boolean v)    { this.closeable = v;    return this; }
+    public GuiWindow setShowTitleBar(boolean v) { this.showTitleBar = v; return this; }
 
-    public void addWidget (Widget w) { widgets.add(w); }
+    public void setBodyTexture(String path) {
+        this.bodyTexturePath = path;
+    }
 
-    // --- Ввод ---
+    public void addWidget(Widget w) { widgets.add(w); }
 
-    public void mousePressed(int mx, int my){
-        if(!visible) return;
+    private boolean overCloseButton(int mx, int my){
+        BufferedImage closeTex = TextureLoader.getGuiTexture("gui/sprites/widget/title_close");
+        int bw = closeTex != null ? closeTex.getWidth() : 16;
+        int bh = closeTex != null ? closeTex.getHeight() : 16;
+        return mx >= x + width - bw - 1 && mx <= x + width - 1
+                && my >= y + 1 && my <= y + 1 + bh;
+    }
 
-        // Проверяем заголовок для dragg
-        if(mx >= x && mx <= x + width && my >= y && my <= y + titleBarHeight){
+    public ItemStack mousePressed(int mx, int my, int button, boolean shift, ItemStack cursor){
+        if(!visible) return cursor;
+
+        if(closeable && overCloseButton(mx,my)){
+            close();
+            return cursor;
+        }
+
+        if(draggable && showTitleBar && mx >= x && mx <= x + width && my >= y && my <= y + titleBarHeight){
             dragging = true;
             dragOffsetX = mx - x;
             dragOffsetY = my - y;
         }
 
-        // Клик по виджетам
-        for( int i = 0; i < widgets.size(); i++){
+        for(int i = 0; i < widgets.size(); i++){
             Widget w = widgets.get(i);
             if(w instanceof ButtonWidget){
                 ButtonWidget btn = (ButtonWidget) w;
@@ -58,12 +77,27 @@ public class GuiWindow {
                 }
             }
         }
+
+        return slotClicked(mx, my, button, shift, cursor);
+    }
+
+    public ItemStack slotClicked(int mx, int my, int button, boolean shift, ItemStack cursor){
+        return cursor;
     }
 
     public void mouseDragged(int mx, int my) {
         if (!visible || !dragging) return;
-        x = mx - dragOffsetX;
-        y = my - dragOffsetY;
+        int newX = mx - dragOffsetX;
+        int newY = my - dragOffsetY;
+        int dx = newX - this.x;
+        int dy = newY - this.y;
+        this.x = newX;
+        this.y = newY;
+
+        for(int i = 0; i < widgets.size(); i++){
+            Widget w = widgets.get(i);
+            w.setPosition(w.getX() + dx, w.getY() + dy);
+        }
     }
 
     public void mouseReleased(int mx, int my) {
@@ -72,7 +106,6 @@ public class GuiWindow {
 
     public void mouseMoved(int mx, int my) {
         if (!visible) return;
-        // Hover для кнопок
         for (int i = 0; i < widgets.size(); i++) {
             Widget w = widgets.get(i);
             if (w instanceof ButtonWidget) {
@@ -80,44 +113,50 @@ public class GuiWindow {
                 btn.setHovered(btn.contains(mx, my));
             }
         }
+        closeHovered = overCloseButton(mx, my);
     }
-
-    // --- Отрисовка ---
 
     public void render(Graphics2D g2d) {
         if (!visible) return;
 
-        // Заголовок
-        g2d.setColor(new Color(50, 50, 80));
-        g2d.fillRect(x, y, width, titleBarHeight);
-        g2d.setColor(new Color(80, 80, 120));
-        g2d.drawRect(x, y, width, titleBarHeight);
+        if(showTitleBar){
+            // Title bar — nine-slice
+            BufferedImage titleTex = TextureLoader.getGuiTexture("gui/sprites/widget/title_window");
+            this.titleBarHeight = titleTex.getHeight();
+            g2d.drawImage(titleTex, x, y, width, titleBarHeight, null);
 
-        // Текст заголовка
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 14));
-        g2d.drawString(title, x + 8, y + 18);
+            // Title text
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(new Font("Arial", Font.BOLD, 10));
+            g2d.drawString(title, x + 4, y + 10);
 
-        // Кнопка закрытия (X)
-        int cx = x + width - 20;
-        int cy = y + 4;
-        g2d.setColor(new Color(180, 50, 50));
-        g2d.fillRect(cx, cy, 16, 16);
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, 12));
-        g2d.drawString("X", cx + 4, cy + 13);
+            // Close button — drawImage (no nine-slice)
+            String closePath = closeHovered
+                    ? "gui/sprites/widget/title_close_hover"
+                    : "gui/sprites/widget/title_close";
+            BufferedImage closeTex = TextureLoader.getGuiTexture(closePath);
+            if (closeTex != null) {
+                int cx = x + width - closeTex.getWidth() - 1;
+                int cy = y + 1;
+                g2d.drawImage(closeTex, cx, cy, null);
+            }
+        }
 
-        // Фон содержимого
-        g2d.setColor(new Color(40, 40, 40));
-        g2d.fillRect(x, y + titleBarHeight, width, height - titleBarHeight);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(x, y, width, height);
+        // Body — fillRect
+        BufferedImage bodyTex = bodyTexturePath != null
+                ? TextureLoader.getGuiTexture(bodyTexturePath) : null;
+        if (bodyTex != null) {
+            g2d.drawImage(bodyTex, x, y + titleBarHeight, width, height - titleBarHeight, null);
+        } else {
+            g2d.setColor(new Color(40, 40, 40));
+            g2d.fillRect(x, y + titleBarHeight, width, height - titleBarHeight);
+            g2d.setColor(Color.BLACK);
+            g2d.drawRect(x, y, width, height);
+        }
 
-        // Виджеты
+        // Widgets
         for (int i = 0; i < widgets.size(); i++) {
             widgets.get(i).render(g2d);
         }
     }
-
-
 }

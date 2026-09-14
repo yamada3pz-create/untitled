@@ -1,0 +1,6 @@
+{
+  "id": "pipe",
+  "name": "Труба",
+  "maxStackSize": 64,
+  "placeBlock": "pipe"
+}

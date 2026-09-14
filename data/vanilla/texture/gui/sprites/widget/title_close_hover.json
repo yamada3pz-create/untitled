@@ -1,0 +1,6 @@
+{
+  "title_close_hover": {
+    "texture": "gui/sprites/widget/title_close_hover",
+    "scaling": { "type": "none", "border": 0 }
+  }
+}

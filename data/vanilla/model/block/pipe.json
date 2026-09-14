@@ -1,0 +1,10 @@
+{
+  "textures": {
+    "base": "pipe"
+  },
+  "animation": {
+    "frames": 2,
+    "speed": 15,
+    "loop": true
+  }
+}

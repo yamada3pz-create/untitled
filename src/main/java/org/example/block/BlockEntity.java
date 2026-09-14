@@ -23,7 +23,4 @@ public abstract class BlockEntity {
 
     // Загружать данные из файла
     public abstract  void load(DataInputStream in) throws Exception;
-
-    // Вызыватся каждый кадр (по умолчанию ничего не делает)
-    public void tick(){}
 }

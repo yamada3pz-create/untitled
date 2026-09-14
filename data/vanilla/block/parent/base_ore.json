@@ -1,0 +1,7 @@
+{
+  "layer": "overlay",
+  "isSolid": false,
+  "drillTier": 1,
+  "infinite": false,
+  "defaultAmount": 20
+}

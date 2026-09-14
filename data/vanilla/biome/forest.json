@@ -1,0 +1,13 @@
+{
+  "id": "forest",
+  "minTemperature": 0.5,
+  "maxTemperature": 1.0,
+  "minHumidity": 0.0,
+  "maxHumidity": 1.0,
+  "surfaceBlock": "grass",
+  "ores": {
+    "iron_ore": { "rarity": 0.75, "width": 0.035, "minCount": 1, "maxCount": 4 },
+    "copper_ore": { "rarity": 0.75, "width": 0.030, "minCount": 2, "maxCount": 6 },
+    "coal_ore": { "rarity": 0.70, "width": 0.030, "minCount": 1, "maxCount": 4 }
+  }
+}

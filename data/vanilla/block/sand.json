@@ -1,0 +1,5 @@
+{
+  "parent": "base_floor",
+  "id": "sand",
+  "moveSpeed": 0.7
+}

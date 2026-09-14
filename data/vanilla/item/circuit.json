@@ -1,0 +1,5 @@
+{
+  "id": "circuit",
+  "name": "Схема",
+  "maxStackSize": 64
+}

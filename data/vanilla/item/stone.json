@@ -1,0 +1,6 @@
+{
+  "id": "stone",
+  "name": "Камень",
+  "maxStackSize": 64,
+  "placeBlock": "stone"
+}

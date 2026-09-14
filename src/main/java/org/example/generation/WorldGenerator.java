@@ -1,11 +1,15 @@
 package org.example.generation;
 
+import org.example.block.Block;
 import org.example.block.Blocks;
 import org.example.world.Chunk;
+
+import java.util.Random;
 
 public class WorldGenerator {
 
     private long seed;
+    private final Random random = new Random();
 
     public WorldGenerator(Long seed){
         this.seed = seed;
@@ -18,44 +22,67 @@ public class WorldGenerator {
                 int wx = chunk.getWorldX(x);
                 int wy = chunk.getWorldY(y);
 
-                // Пол по температуре и влажности
+                // Климат → биом
                 double temp  = PerlinNoise.getTemperature(wx * 0.01, wy * 0.01);
                 double humid = PerlinNoise.getHumidity(wx * 0.015, wy * 0.015);
                 float tempF  = (float) ((temp + 1.0) * 0.5);
                 float humidF = (float) ((humid + 1.0) * 0.5);
-                chunk.setFloorId(x, y, selectFloor(tempF, humidF));
 
-                // Руда: отдельный шум, редкие пятна выше порога
-                double ore = PerlinNoise.getOre(wx * 0.11, wy * 0.11);
-                float oreF = (float) ((ore + 1.0) * 0.5);
-                if (oreF > 0.72f) {
-                    chunk.setOreId(x, y, selectOre(wx, wy));
+                Biome biome = Biomes.matchBiome(tempF, humidF);
+
+                // Пол из биома
+                Block surfaceBlock = Blocks.getByName(biome.getSurfaceBlock());
+                chunk.setFloorId(x, y, surfaceBlock.getGlobalId());
+
+                // Руды из биома — жильная генерация (как в v0.2)
+                for (Biome.OreConfig ore : biome.getOres()) {
+                    // Нормализуем имя: блок "iron_ore" -> базовое "iron" для per-ore шума
+                    String oreName = stripOreSuffix(ore.getBlockId());
+
+                    // Жила-шум конкретной руды [0..1] (независимые жилы на каждую руду)
+                    double oreNoise = PerlinNoise.getOreNoise(oreName, wx, wy);
+
+                    // FBM-маска редкости [0..1] — чтобы жилы шли не сплошным полем
+                    double rawMask = PerlinNoise.getFractalNoise(wx * 0.01, wy * 0.01);
+                    double mask = (rawMask + 1.0) * 0.5;
+
+                    // Условие жилы: близко к центру шума И достаточно редкая маска
+                    if (Math.abs(oreNoise - 0.5) < ore.getWidth() && mask > ore.getRarity()) {
+                        Block oreBlock = Blocks.getByName(ore.getBlockId());
+                        if (oreBlock != Blocks.AIR) {
+                            chunk.setOreId(x, y, oreBlock.getGlobalId());
+
+                            // Количество: чем ближе к центру жилы — тем больше
+                            double factor = (ore.getWidth() - Math.abs(oreNoise - 0.5)) / ore.getWidth();
+                            int amount = ore.getMinCount() + (int)(factor * (ore.getMaxCount() - ore.getMinCount()));
+                            chunk.setOreAmount(x, y, Math.max(ore.getMinCount(), Math.min(amount, ore.getMaxCount())));
+                        }
+                        break; // Один тайл — максимум один тип руды
+                    }
                 }
 
                 // Валуны: очень редко, не поверх руды
                 if (chunk.getOreId(x, y) == Blocks.AIR.getGlobalId()
                         && hash(wx, wy, 777) < 0.02f) {
-                    chunk.setObjectId(x, y, Blocks.WALL.getGlobalId());
+                    Block wall = Blocks.getByName("wall");
+                    chunk.setObjectId(x, y, wall.getGlobalId());
                 }
             }
         }
         chunk.setGenerated(true);
     }
 
-    private int selectFloor(float temp, float humid) {
-        if (temp > 0.6f && humid < 0.4f) return Blocks.SAND.getGlobalId();
-        if (temp < 0.3f)                 return Blocks.STONE.getGlobalId();
-        return Blocks.GRASS.getGlobalId();
+    /**
+     * Убирает суффикс "_ore" из имени блока руды, чтобы получить базовое имя
+     * для пер-ой шума. Пример: "iron_ore" -> "iron", "gold_ore" -> "gold".
+     */
+    private static String stripOreSuffix(String blockId){
+        if(blockId != null && blockId.endsWith("_ore")){
+            return blockId.substring(0, blockId.length() - 4); // отрезаем "_ore"
+        }
+        return blockId;
     }
 
-    private int selectOre(int wx, int wy) {
-        // Тип руды по стабильному хешу координат: медь чуть чаще железа
-        return hash(wx, wy, 555) < 0.55f
-                ? Blocks.IRON_ORE.getGlobalId()
-                : Blocks.COPPER_ORE.getGlobalId();
-    }
-
-    // Детерминированный хеш точки в [0..1], зависит от seed
     private float hash(int x, int y, int offset) {
         long n = (long)(x * 374761393L + y * 668265263L + seed * 1274126177L + offset * 1000003L);
         n = (n ^ (n >> 13)) * 1274126177L;

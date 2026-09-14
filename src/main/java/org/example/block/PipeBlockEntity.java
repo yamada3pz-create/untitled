@@ -8,6 +8,7 @@ public class PipeBlockEntity extends BlockEntity{
     private float amount;       // Сколько жидкости сейчас
     private float maxAmount;    // максимум (1.0)
     private String liquidType;  // тип жидкости ("water","lava","")
+    private Direction direction = Direction.NORTH; // сторона, куда течёт труба
 
     public PipeBlockEntity(int x, int y){
         super(x,y);
@@ -32,6 +33,11 @@ public class PipeBlockEntity extends BlockEntity{
         this.liquidType = liquidType;
     }
 
+    public Direction getDirection(){ return direction; }
+    public void setDirection(Direction direction){
+        this.direction = direction;
+    }
+
     public boolean isFull(){ return amount >= maxAmount; }
     public boolean isEmpty(){ return amount <= 0; }
 
@@ -45,7 +51,7 @@ public class PipeBlockEntity extends BlockEntity{
         out.writeFloat(amount);
         out.writeFloat(maxAmount);
         out.writeUTF(liquidType);
-
+        out.writeUTF(direction.name());
     }
 
     @Override
@@ -53,6 +59,6 @@ public class PipeBlockEntity extends BlockEntity{
         amount = in.readFloat();
         maxAmount = in.readFloat();
         liquidType = in.readUTF();
-
+        direction = Direction.fromString(in.readUTF());
     }
 }

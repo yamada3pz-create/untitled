@@ -1,0 +1,6 @@
+{
+  "id": "wall",
+  "name": "Стена",
+  "destroyTime": 1.5,
+  "drops": "wall"
+}

@@ -3,7 +3,7 @@ package org.example.block.Machine;
 public class MachineBlockEntity extends  MachineEntity{
 
     public MachineBlockEntity(int x, int y) {
-        super(x, y, 100);
+        super(x, y, 40);
     }
 
     @Override

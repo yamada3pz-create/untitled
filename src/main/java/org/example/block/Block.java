@@ -1,52 +1,61 @@
 package org.example.block;
 
-import org.example.core.ResourceManager;
-
-import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.util.*;
 
 public class Block {
 
-    private final int globalId;                          // Глобальное id блока
-    private final String id;                             // "vanilla:pipe"
-    private final String name;                           // "Pipe"
-    private final boolean solid;                         // Можно ли пройти сквозь него
-    private final float destroyTime;                     // Время добычи
-    private final Color color;                           // Цвет для карт (мб)
-    private final boolean hasRotation;                   // Поддерживание поворотов
-    private final Set<String> connectToTags;             // Тэги для автосоединения ["pipe", "pump"]
+    private final int globalId;
+    private final String id;
+    private final String name;
+    private final boolean solid;
+    private final float destroyTime;
+    private final boolean hasRotation;
+    private final Set<String> connectToTags;
     private final boolean hasBlockEntity;
 
+    private final String layer;
+    private final float moveSpeed;
+    private final int drillTier;
+    private final boolean infinite;
+    private final int defaultAmount;
+    private final String drops;
 
-    public Block(int globalId, String name, BlockProperties properties){
+    public Block(int globalId, String id, BlockProperties p){
         this.globalId = globalId;
-        this.id = "vanilla:" + name;
-        this.name = name;
-        this.solid = properties.solid;
-        this.destroyTime = properties.destroyTime;
-        this.color = properties.color;
-        this.hasRotation = properties.hasRotation;
-        this.connectToTags = new HashSet<String>(Arrays.asList(properties.connectsToTags));
-        this.hasBlockEntity = properties.hasBlockEntity;
+        this.id = id;
+        this.name = p.name.isEmpty() ? id : p.name;
+        this.solid = p.solid;
+        this.destroyTime = p.destroyTime;
+        this.hasRotation = p.hasRotation;
+        this.connectToTags = new HashSet<String>(Arrays.asList(p.connectsToTags));
+        this.hasBlockEntity = p.hasBlockEntity;
+        this.layer = p.layer;
+        this.moveSpeed = p.moveSpeed;
+        this.drillTier = p.drillTier;
+        this.infinite = p.infinite;
+        this.defaultAmount = p.defaultAmount;
+        this.drops = p.drops;
     }
-    // Геттеры
-    public int getGlobalId()                            { return globalId; }
-    public String getId()                               { return id;}
-    public String getName()                             { return name; }
-    public boolean isSolid()                            { return  solid; }
-    public float getDestroyTime()                       { return destroyTime; }
-    public Color getColor()                             { return color; }
-    public boolean hasRotation()                        { return hasRotation; }
-    public Set<String> getConnectsToTags()              { return connectToTags; }
-    public boolean hasBlockEntity()                     { return hasBlockEntity; }
 
-    /** Соединяется ли этот блок с другими (пересечение тэгов) */
+    public int getGlobalId()        { return globalId; }
+    public String getId()           { return id; }
+    public String getName()         { return name; }
+    public boolean isSolid()        { return solid; }
+    public float getDestroyTime()   { return destroyTime; }
+    public boolean hasRotation()    { return hasRotation; }
+    public Set<String> getConnectsToTags() { return connectToTags; }
+    public boolean hasBlockEntity() { return hasBlockEntity; }
+
+    public String getLayer()        { return layer; }
+    public float getMoveSpeed()     { return moveSpeed; }
+    public int getDrillTier()       { return drillTier; }
+    public boolean isInfinite()     { return infinite; }
+    public int getDefaultAmount()   { return defaultAmount; }
+    public String getDrops()        { return drops; }
+
     public boolean connectsTo(Block other){
         for(String tag : connectToTags){
-            if(other.connectToTags.contains(tag)){
-                return true;
-            }
+            if(other.connectToTags.contains(tag)) return true;
         }
         return false;
     }

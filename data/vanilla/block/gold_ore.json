@@ -1,0 +1,6 @@
+{
+  "parent": "base_ore",
+  "id": "gold_ore",
+  "name": "Золотая руда",
+  "drops": "gold_ore"
+}

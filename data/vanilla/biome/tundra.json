@@ -1,0 +1,12 @@
+{
+  "id": "tundra",
+  "minTemperature": 0.0,
+  "maxTemperature": 0.1,
+  "minHumidity": 0.9,
+  "maxHumidity": 1.0,
+  "surfaceBlock": "stone",
+  "ores": {
+    "iron_ore": { "rarity": 0.80, "width": 0.025, "minCount": 1, "maxCount": 3 },
+    "coal_ore": { "rarity": 0.75, "width": 0.030, "minCount": 1, "maxCount": 3 }
+  }
+}

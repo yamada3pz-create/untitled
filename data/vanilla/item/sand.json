@@ -1,0 +1,5 @@
+{ "id": "sand",
+  "name": "Песок",
+  "maxStackSize": 64,
+  "placeBlock": "sand"
+}
