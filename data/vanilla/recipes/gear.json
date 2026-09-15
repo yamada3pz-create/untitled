@@ -1,0 +1,8 @@
+{
+  "input": [
+    { "id": "iron_plate", "amount": 1 },
+    { "id": "copper_plate", "amount": 1 }
+  ],
+  "output": { "id": "gear", "amount": 1 },
+  "craftTimeTicks": 40
+}

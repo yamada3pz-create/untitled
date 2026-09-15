@@ -8,17 +8,20 @@ import org.example.core.GameState;
 import org.example.core.ResourceManager;
 import org.example.core.UI;
 import org.example.generation.WorldGenerator;
+import org.example.entity.Player;
 import org.example.inventory.ChestContainer;
 import org.example.inventory.Inventory;
 import org.example.ui.ContainerWindow;
 import org.example.ui.GuiWindow;
 import org.example.ui.PlayerInventoryWindow;
 import org.example.ui.widgets.ChestWindow;
+import org.example.ui.widgets.MachineWindow;
 import org.example.ui.widgets.ButtonWidget;
 import org.example.ui.widgets.HotbarWidget;
 import org.example.ui.widgets.Widget;
 import org.example.world.Chunk;
 import org.example.world.World;
+import org.example.world.systems.DensityUtil;
 import org.example.item.Item;
 import org.example.item.ItemStack;
 import org.example.item.Items;
@@ -44,29 +47,22 @@ public class PlayingState extends GameState {
     private Inventory playerInventory;
     private ArrayList<GuiWindow> openWindows;
     private ChestWindow chestWindow;
+    private MachineWindow machineWindow;
     private ItemStack cursorStack = ItemStack.EMPTY; // предмет зажатый курсором
     private HotbarWidget hotbar;
     private int mouseX, mouseY;
     private boolean uiOpen;
 
-    // Для автозакрытия сундука по дистанции
+    // Для автозакрытия сундука/машины по дистанции
     private int chestTileX, chestTileY;
+    private int machineTileX, machineTileY;
     private boolean chestClosedByDistance = false;      // сундук был закрыт из-за отхода (не вручную)
     private boolean playerInvOpenedFirst = false;       // инвентарь игрока открыт ещё до сундука
     private static final float CHEST_CLOSE_RADIUS = 5f; // в тайлах
 
-    private float playerX = 8.0f;
-    private float playerY = 8.0f;
-    private float prevX = playerX; // позиция на прошлом тике (для интерполяции)
-    private float prevY = playerY;
+    private Player player;
 
     private static final int TILE_SIZE = 16;
-
-    // Хитбокс 12px меньше видимого квадрата 16px: текстура заходит на блок на 2px
-    // (как в MC — коллизия по хитбоксу, а модель/текстура могут выступать за него).
-    private static final float PLAYER_SIZE = 12f;
-    private static final float HITBOX_OFFSET = 2f;
-    private static final float MOVE_SPEED = 120f; // Пикселей в секунду
 
     // Тонировка слоёв: пол темнее, руда подсвечена
     private static final Color SHADE_FLOOR = new Color(0, 0, 0, 0);
@@ -92,8 +88,7 @@ public class PlayingState extends GameState {
         generator = new WorldGenerator(realSeed);
         world.saveSeed(realSeed);               // Фиксируем при первом создании
 
-
-
+        player = new Player(world, 8.0f, 8.0f);
 
         playerInventory = new Inventory(36);
         hotbar = new HotbarWidget(playerInventory, 27);// слоты 27 - 35 хотбар
@@ -107,8 +102,12 @@ public class PlayingState extends GameState {
             playerInventory.setStack(27, new ItemStack(Items.get("grass"), 5));
             playerInventory.setStack(28, new ItemStack(Items.get("stone"), 12));
             playerInventory.setStack(29, new ItemStack(Items.get("sand"), 3));
+            playerInventory.setStack(30, new ItemStack(Items.get("iron_ore"), 20));
+            playerInventory.setStack(31, new ItemStack(Items.get("copper_ore"), 20));
+            playerInventory.setStack(32, new ItemStack(Items.get("belt"), 16));
             playerInventory.setStack(33, new ItemStack(Items.get("wall"), 20));
-            playerInventory.setStack(34, new ItemStack(Items.get("chest"), 2));
+            playerInventory.setStack(34, new ItemStack(Items.get("machine"), 4));
+            playerInventory.setStack(35, new ItemStack(Items.get("chest"), 2));
         }else {
             playerInv = new PlayerInventoryWindow(playerInventory);
             openWindows = new ArrayList<GuiWindow>();
@@ -123,7 +122,7 @@ public class PlayingState extends GameState {
             }
 
         camera = new Camera(1000, 1000);
-        camera.follow(playerX, playerY);
+        camera.follow(player.getX(), player.getY());
         if(!loaded){
             placePlayerSafely();
         }
@@ -142,6 +141,7 @@ public class PlayingState extends GameState {
             if(anyWindowOpen()){
                 closeAllUi();
                 chestWindow = null;
+                machineWindow = null;
             }else if(paused){
                 paused = false;
             }else{
@@ -159,6 +159,7 @@ public class PlayingState extends GameState {
             if(anyWindowOpen()){
                 closeAllUi();
                 chestWindow = null;
+                machineWindow = null;
             }else{
                 playerInv.open();
                 uiOpen = true;
@@ -255,6 +256,15 @@ public class PlayingState extends GameState {
             }
             return;
         }
+        // Если открыта машина — клик уходит в её окно
+        if(machineWindow != null && machineWindow.isOpen()){
+            cursorStack = sendMousePressToUi(ux, uy, e.getButton(), e.isShiftDown());
+            if(!anyWindowOpen()){
+                uiOpen = false;
+                machineWindow = null;
+            }
+            return;
+        }
         // Открыт только инвентарь игрока (по E) — клики по миру разрешены,
         // но только если клик НЕ попал в окно инвентаря
         if(playerInv.isOpen()){
@@ -272,10 +282,14 @@ public class PlayingState extends GameState {
         int tx = getMouseTileX();
         int ty = getMouseTileY();
 
+        // Действия с миром только в радиусе взаимодействия от игрока
+        if(!player.canInteract(tx, ty)) return;
+
         if(e.getButton() == MouseEvent.BUTTON1){
             breakBlock(tx, ty);
         }else{
             if(tryOpenChest(tx, ty)) return;
+            if(tryOpenMachine(tx, ty)) return;
             placeBlock(tx, ty);
         }
     }
@@ -310,8 +324,8 @@ public class PlayingState extends GameState {
         try{
             DataOutputStream out = new DataOutputStream(new FileOutputStream(
                     new File(world.getWorldDir(), "player.dat")));
-            out.writeFloat(playerX);
-            out.writeFloat(playerY);
+            out.writeFloat(player.getX());
+            out.writeFloat(player.getY());
             playerInventory.save(out);
             out.writeInt(hotbar.getSelected());
             out.close();
@@ -323,9 +337,9 @@ public class PlayingState extends GameState {
         if(!f.exists()) return false;
         try{
             DataInputStream in = new DataInputStream(new FileInputStream(f));
-            playerX = in.readFloat();
-            playerY = in.readFloat();
-            prevX = playerX; prevY = playerY;   // без рывка интерполяции
+            float px = in.readFloat();
+            float py = in.readFloat();
+            player.setPosition(px, py);   // без рывка интерполяции
             playerInventory.load(in);
             hotbar.setSelected(in.readInt());
             in.close();
@@ -341,33 +355,8 @@ public class PlayingState extends GameState {
     public void tick(){
         if(paused) return; // мир заморожен, пока открыто меню паузы
 
-        prevX = playerX;
-        prevY = playerY;
-
-        float dirX = 0, dirY = 0;
-        if (pressedKeys.contains(KeyEvent.VK_W) || pressedKeys.contains(KeyEvent.VK_UP)) dirY -= 1;
-        if (pressedKeys.contains(KeyEvent.VK_S) || pressedKeys.contains(KeyEvent.VK_DOWN)) dirY += 1;
-        if (pressedKeys.contains(KeyEvent.VK_A) || pressedKeys.contains(KeyEvent.VK_LEFT)) dirX -= 1;
-        if (pressedKeys.contains(KeyEvent.VK_D) || pressedKeys.contains(KeyEvent.VK_RIGHT)) dirX += 1;
-        if (dirX != 0 && dirY != 0) {
-            float len = (float) Math.sqrt(dirX * dirX + dirY * dirY);
-            dirX /= len;
-            dirY /= len;
-        }
-
-
-        // MC-подход: двигаем хитбокс по осям ПО-ОТДЕЛЬНОСТИ.
-        // Скорость усекается до реально свободного расстояния до грани блока
-        // (Vector Clipping), поэтому игрок всегда встаёт вплотную, без щелей.
-        float moveX = dirX * MOVE_SPEED * Game.SECONDS_PER_TICK;
-        float moveY = dirY * MOVE_SPEED * Game.SECONDS_PER_TICK;
-
-        AABB box = playerBox();
-        box = box.moved(collideAxisX(box, moveX), 0);
-        box = box.moved(0, collideAxisY(box, moveY));
-
-        playerX = box.minX - HITBOX_OFFSET;
-        playerY = box.minY - HITBOX_OFFSET;
+        player.saveTickPos();
+        player.handleInput(pressedKeys);
 
         world.tickSystems();
         loadChunksAroundPlayer();
@@ -379,15 +368,7 @@ public class PlayingState extends GameState {
     @Override
     public void update(float dt) {
         camera.setScreenSize(game.getWidth(), game.getHeight());
-        camera.follow(getRenderX(), getRenderY());
-    }
-
-    // Плавная позиция игрока между тиками
-    private float getRenderX(){
-        return prevX + (playerX - prevX) * game.getTickAlpha();
-    }
-    private float getRenderY(){
-        return prevY + (playerY - prevY) * game.getTickAlpha();
+        camera.follow(player.getRenderX(game.getTickAlpha()), player.getRenderY(game.getTickAlpha()));
     }
 
     @Override
@@ -453,13 +434,15 @@ public class PlayingState extends GameState {
                         g2d.fillRect(worldPx + 2, worldPy + TILE_SIZE - 4, progress, 2);
                     }
                 }
+                if (entity instanceof BeltBlockEntity) {
+                    drawBelt(g2d, (BeltBlockEntity) entity, worldPx, worldPy);
+                }
             }
         }
 
 
-        // Игрок
-        g2d.setColor(Color.WHITE);
-        g2d.fillRect((int) getRenderX(), (int) getRenderY(), 16, 16);
+        // Игрок — спрайт по направлению взгляда, плавная позиция между тиками
+        drawPlayer(g2d);
 
         // Возвращаем матрицу для UI
         g2d.setTransform(oldTransform);
@@ -467,7 +450,7 @@ public class PlayingState extends GameState {
         // UI текст
         g2d.setColor(Color.GREEN);
         g2d.drawString("World | Зум: " + zoom + " | Чанков: " + world.getLoadedCount(), 10, 20);
-        g2d.drawString("Позиция X: " + (int) playerX + " Y: " + (int) playerY, 10, 40);
+        g2d.drawString("Позиция X: " + (int) player.getX() + " Y: " + (int) player.getY(), 10, 40);
 
         // Весь интерфейс (окна + зажатый предмет) рисуем в "виртуальных" координатах
         // и увеличиваем на UI.scale — так же, как хотбар.
@@ -542,6 +525,32 @@ public class PlayingState extends GameState {
         return true;
     }
 
+    // ПКМ по машине — открываем окно машины (IN0/IN1/OUT)
+    private boolean tryOpenMachine(int tx, int ty){
+        if(!(world.getBlockEntityAt(tx, ty) instanceof MachineBlockEntity machine)) return false;
+
+        boolean invAlreadyOpen = playerInv.isOpen();
+        this.playerInvOpenedFirst = invAlreadyOpen;
+        positionUiDefault();
+
+        if(machineWindow != null && machineWindow.isOpen()) machineWindow.close();
+        machineWindow = new MachineWindow(machine.getInventory(), 620, 150);
+        machineWindow.open();
+        openWindows.add(machineWindow);
+
+        if(!invAlreadyOpen){
+            playerInv.setPosition(200, 150);
+            playerInv.open();
+        }
+
+        uiOpen = true;
+        openWindows.removeIf(w -> !w.isOpen());
+
+        machineTileX = tx;
+        machineTileY = ty;
+        return true;
+    }
+
     // Закрыть все окна UI и вернуть предмет с курсора
     private void closeAllUi(){
         returnCursorToInventory();
@@ -568,26 +577,49 @@ public class PlayingState extends GameState {
 
     // Автозакрытие сундука при отходе на заданный радиус
     private void checkChestDistance(){
-        if(chestWindow == null || !chestWindow.isOpen()) return;
-        float dtx = playerX - chestTileX;
-        float dty = playerY - chestTileY;
-        float dist = (float) Math.sqrt(dtx * dtx + dty * dty);
-        if(dist > CHEST_CLOSE_RADIUS){
-            boolean removeInv = !playerInvOpenedFirst;
-            closeChestOnly();
-            // Если сундук открывал сам себя (инвентарь не открывался по E) — закрываем и инвентарь
-            if(removeInv){
-                closeAllUi();
+        if(chestWindow != null && chestWindow.isOpen()){
+            float dist = distanceToTile(chestTileX, chestTileY);
+            if(dist > CHEST_CLOSE_RADIUS){
+                boolean removeInv = !playerInvOpenedFirst;
+                closeChestOnly();
+                // Если сундук открывал сам себя (инвентарь не открывался по E) — закрываем и инвентарь
+                if(removeInv){
+                    closeAllUi();
+                }
+                chestWindow = null;
             }
-            chestWindow = null;
+            return;
         }
+        // Автозакрытие машины
+        if(machineWindow != null && machineWindow.isOpen()){
+            float dist = distanceToTile(machineTileX, machineTileY);
+            if(dist > CHEST_CLOSE_RADIUS){
+                boolean removeInv = !playerInvOpenedFirst;
+                returnCursorToInventory();
+                machineWindow.close();
+                openWindows.removeIf(w -> !w.isOpen());
+                machineWindow = null;
+                if(removeInv){
+                    closeAllUi();
+                }else if(!playerInv.isOpen()){
+                    uiOpen = false;
+                }else{
+                    uiOpen = true;
+                }
+            }
+        }
+    }
+
+    // Дистанция от игрока (в пикселях) до центра тайла — в тайлах
+    private float distanceToTile(int tx, int ty){
+        float dtx = player.getX() - (tx * TILE_SIZE + TILE_SIZE / 2f);
+        float dty = player.getY() - (ty * TILE_SIZE + TILE_SIZE / 2f);
+        return (float) Math.sqrt(dtx * dtx + dty * dty) / TILE_SIZE;
     }
 
     // Хитбокс игрока (в мировых пикселях). Меньше видимого квадрата 16px — пролезает в щели.
     private AABB playerBox(){
-        float hx = playerX + HITBOX_OFFSET;
-        float hy = playerY + HITBOX_OFFSET;
-        return new AABB(hx, hy, hx + PLAYER_SIZE, hy + PLAYER_SIZE);
+        return player.getBox();
     }
 
     // Правильное округление ВНИЗ координаты до тайла (MC: floor, а не (int) trunc).
@@ -595,76 +627,127 @@ public class PlayingState extends GameState {
     private int tileFloor(float worldPx){
         return (int) Math.floor(worldPx / TILE_SIZE);
     }
+    // Игрок: текстура по направлению взгляда, фолбэк — процедурный человечек
+    private void drawPlayer(Graphics2D g2d){
+        int px = (int) player.getRenderX(game.getTickAlpha());
+        int py = (int) player.getRenderY(game.getTickAlpha());
 
-    // MC-клинпинг по X (аналог calculateXOffset): усекаем dx до свободного
-    // расстояния до грани блока, чтобы игрок вставал вплотную, грань к грани.
-    private float collideAxisX(AABB box, float dx){
-        if(dx == 0) return 0f;
-
-        // Все тайлы, которые хитбокс заденет при сдвиге на dx (свип)
-        int minTx = tileFloor(Math.min(box.minX, box.minX + dx));
-        int maxTx = tileFloor(Math.max(box.maxX, box.maxX + dx) - 0.001f);
-        int minTy = tileFloor(box.minY);
-        int maxTy = tileFloor(box.maxY - 0.001f);
-
-        for(int ty = minTy; ty <= maxTy; ty++){
-            for(int tx = minTx; tx <= maxTx; tx++){
-                if(!Blocks.get(world.getObjectIdAt(tx, ty)).isSolid()) continue;
-
-                float tileMinX = tx * TILE_SIZE;
-                float tileMaxX = tileMinX + TILE_SIZE;
-                float tileMinY = ty * TILE_SIZE;
-                float tileMaxY = tileMinY + TILE_SIZE;
-
-                // Блок на другой высоте — столкновения по X нет
-                if(box.maxY <= tileMinY || box.minY >= tileMaxY) continue;
-
-                if(dx > 0 && box.maxX <= tileMinX){
-                    float free = tileMinX - box.maxX;
-                    if(free < dx) dx = free;
-                }
-                if(dx < 0 && box.minX >= tileMaxX){
-                    float free = tileMaxX - box.minX;
-                    if(free > dx) dx = free;
-                }
-            }
+        String tex = switch (player.getFacing()){
+            case NORTH -> "player_up";
+            case SOUTH -> "player_down";
+            case EAST  -> "player_right";
+            case WEST  -> "player_left";
+        };
+        BufferedImage texture = ResourceManager.getEntityTexture(tex);
+        if(texture != null){
+            g2d.drawImage(texture, px, py, TILE_SIZE, TILE_SIZE, null);
+            return;
         }
-        return dx;
+
+        // Процедурная заглушка: голова + тело, ориентированные по взгляду
+        g2d.setColor(new Color(200, 200, 210));
+        g2d.fillRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+        g2d.setColor(new Color(40, 100, 200));
+        g2d.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+        // Нос по направлению взгляда
+        g2d.setColor(new Color(230, 160, 60));
+        switch (player.getFacing()){
+            case NORTH -> g2d.fillRect(px + 6, py + 5, 4, 3);
+            case SOUTH -> g2d.fillRect(px + 6, py + 8, 4, 3);
+            case EAST  -> g2d.fillRect(px + 9, py + 6, 3, 4);
+            case WEST  -> g2d.fillRect(px + 4, py + 6, 3, 4);
+        }
     }
 
-    // MC-клинпинг по Y (аналог calculateZOffset) — зеркально к X.
-    private float collideAxisY(AABB box, float dy){
-        if(dy == 0) return 0f;
+    // Конвейерная лента: основа (direction) + предметы по слотам; углы доворачивают.
+    private void drawBelt(Graphics2D g2d, BeltBlockEntity belt, int px, int py){
+        java.awt.geom.AffineTransform old = g2d.getTransform();
+        int cx = px + TILE_SIZE / 2;
+        int cy = py + TILE_SIZE / 2;
 
-        int minTx = tileFloor(box.minX);
-        int maxTx = tileFloor(box.maxX - 0.001f);
-        int minTy = tileFloor(Math.min(box.minY, box.minY + dy));
-        int maxTy = tileFloor(Math.max(box.maxY, box.maxY + dy) - 0.001f);
+        // База ленты — прямоугольник, повёрнутый по направлению движения
+        g2d.setColor(new Color(70, 70, 75));
+        g2d.fillRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
 
-        for(int ty = minTy; ty <= maxTy; ty++){
-            for(int tx = minTx; tx <= maxTx; tx++){
-                if(!Blocks.get(world.getObjectIdAt(tx, ty)).isSolid()) continue;
+        Direction dir = belt.getDirection();
+        java.awt.Rectangle beltRect = rectAlong(dir, cx, cy, 2, 8);
+        g2d.setColor(new Color(45, 45, 50));
+        g2d.fill(beltRect);
 
-                float tileMinX = tx * TILE_SIZE;
-                float tileMaxX = tileMinX + TILE_SIZE;
-                float tileMinY = ty * TILE_SIZE;
-                float tileMaxY = tileMinY + TILE_SIZE;
+        // Стрелка движения
+        g2d.setColor(new Color(170, 170, 175));
+        drawArrow(g2d, dir, cx, cy);
 
-                // Блок не на этой высоте — столкновения по Y нет
-                if(box.maxX <= tileMinX || box.minX >= tileMaxX) continue;
-
-                if(dy > 0 && box.maxY <= tileMinY){
-                    float free = tileMinY - box.maxY;
-                    if(free < dy) dy = free;
-                }
-                if(dy < 0 && box.minY >= tileMaxY){
-                    float free = tileMaxY - box.minY;
-                    if(free > dy) dy = free;
-                }
-            }
+        // Угол: подсветка противоположного сегмента (доворот)
+        if(belt.isCorner()){
+            g2d.setColor(new Color(90, 90, 100));
+            Direction d = dir.getOpposite();
+            java.awt.Rectangle corner = rectAlong(d, cx, cy, 2, 8);
+            g2d.fill(corner);
         }
-        return dy;
+
+        // Предметы на ленте: позиция слота = доля от хвоста (слот 0) к носу (слот N-1)
+        float step = 1f / BeltBlockEntity.SLOTS_PER_BELT;
+        for(int i = 0; i < BeltBlockEntity.SLOTS_PER_BELT; i++){
+            ItemStack slot = belt.getSlot(i);
+            if(slot.isEmpty()) continue;
+            // предмет чуть ближе к носу, чем сам слот, чтобы выглядело что он движется
+            float t = (i + 0.15f) * step;
+            int ox = Math.round(dir.getOffsetX() * (t - 0.5f) * TILE_SIZE);
+            int oy = Math.round(dir.getOffsetY() * (t - 0.5f) * TILE_SIZE);
+            // лёгкий перпендикулярный сдвиг для вида "лежит на ленте"
+            float perp = 0f;
+            g2d.setColor(slotColor(slot));
+            g2d.fillRect(cx + ox - 3, cy + oy - 2 + Math.round(perp), 6, 4);
+        }
+
+        g2d.setTransform(old);
     }
+
+    // Прямоугольник (полоса), вытянутая вдоль направления dir
+    private java.awt.Rectangle rectAlong(Direction dir, int cx, int cy, int w, int l){
+        if(dir == Direction.EAST || dir == Direction.WEST){
+            return new java.awt.Rectangle(cx - l / 2, cy - w / 2, l, w);
+        }
+        return new java.awt.Rectangle(cx - w / 2, cy - l / 2, w, l);
+    }
+
+    // Стрелка направления движения (маленький треугольник)
+    private void drawArrow(Graphics2D g2d, Direction dir, int cx, int cy){
+        int[] xs = new int[3], ys = new int[3];
+        int tip = 6;
+        switch (dir){
+            case NORTH:
+                xs[0]=cx-2; ys[0]=cy-4; xs[1]=cx+2; ys[1]=cy-4; xs[2]=cx; ys[2]=cy-6;
+                break;
+            case SOUTH:
+                xs[0]=cx-2; ys[0]=cy+4; xs[1]=cx+2; ys[1]=cy+4; xs[2]=cx; ys[2]=cy+6;
+                break;
+            case EAST:
+                xs[0]=cx+4; ys[0]=cy-2; xs[1]=cx+4; ys[1]=cy+2; xs[2]=cx+6; ys[2]=cy;
+                break;
+            default: // WEST
+                xs[0]=cx-4; ys[0]=cy-2; xs[1]=cx-4; ys[1]=cy+2; xs[2]=cx-6; ys[2]=cy;
+        }
+        g2d.fillPolygon(xs, ys, 3);
+    }
+
+    // Цвет предмета — по id/имени (простые маппинги для читаемости)
+    private Color slotColor(ItemStack slot){
+        if(slot.getItem() == null) return new Color(200, 200, 200);
+        String id = slot.getItem().getId();
+        if(id.contains("iron") || id.contains("iron_plate")) return new Color(180, 180, 185);
+        if(id.contains("copper")) return new Color(200, 120, 60);
+        if(id.contains("gold")) return new Color(230, 200, 60);
+        if(id.contains("gear")) return new Color(160, 160, 170);
+        if(id.contains("circuit")) return new Color(90, 200, 90);
+        if(id.contains("stone")) return new Color(120, 120, 125);
+        if(id.contains("sand")) return new Color(210, 190, 130);
+        if(id.contains("grass")) return new Color(110, 170, 90);
+        if(id.contains("coal")) return new Color(70, 70, 75);
+        return new Color(200, 200, 200);
+    }
+
     // Текстура или цвет + маска тонировки сверху
     private void drawTile(Graphics2D g2d, Block block, int px, int py, Color shade, String layer, int worldX, int worldY){
         long tick = System.currentTimeMillis() / 50;
@@ -687,14 +770,12 @@ public class PlayingState extends GameState {
 
     // Ставим игрока на ближайшую свободную клетку, чтобы не появился внутри земли
     private void placePlayerSafely() {
-        int startTx = tileFloor(playerX);
-        int startTy = tileFloor(playerY);
+        int startTx = tileFloor(player.getX());
+        int startTy = tileFloor(player.getY());
         for(int ty = startTy - 16; ty <= startTy + 16; ty++){
             for (int tx = startTx - 16; tx <= startTx + 16; tx++) {
-                if(!Blocks.get(world.getObjectIdAt(tx,ty)).isSolid()){
-                    playerX = tx * TILE_SIZE;
-                    playerY = ty * TILE_SIZE;
-                    prevX = playerX; prevY = playerY;
+                if(!Blocks.get(world.getObjectIdAt(tx,ty)).isCollidable()){
+                    player.setPosition(tx * TILE_SIZE, ty * TILE_SIZE);
                     return;
                 }
             }
@@ -718,22 +799,32 @@ public class PlayingState extends GameState {
         if(objId != airId){
             world.setObjectIdAt(tx, ty, airId);
             world.removeBlockEntityAt(tx, ty);
-            dropItem(Blocks.get(objId));
+            dropItem(Blocks.get(objId), 1);
             return;
         }
 
         int oreId = world.getOreIdAt(tx, ty);
         if(oreId != airId){
-            world.setOreIdAt(tx, ty, airId);
-            dropItem(Blocks.get(oreId));
+            // Бесконечная руда (ТЗ): тайл не удаляем и чанк не помечаем dirty.
+            // Количество дропа зависит от плотности жилы и miningSpeedMultiplier.
+            Block ore = Blocks.get(oreId);
+            if(ore.isInfinite()){
+                double density = DensityUtil.oreDensity(ore.getId(), tx, ty);
+                int count = Math.max(1, (int) Math.round(
+                        density * ore.getMiningSpeedMultiplier() * 2));
+                dropItem(ore, count);
+            } else {
+                world.setOreIdAt(tx, ty, airId);
+                dropItem(ore, 1);
+            }
         }
     }
 
-    private void dropItem(Block broken){
+    private void dropItem(Block broken, int count){
         String dropId = broken.getDrops();
         if(dropId == null || dropId.isEmpty()) return;
         Item drop = Items.get(dropId);
-        if(drop != null) playerInventory.addItem(drop, 1);
+        if(drop != null) playerInventory.addItem(drop, count);
     }
 
     // Установка блока из выбранного слота
@@ -751,7 +842,13 @@ public class PlayingState extends GameState {
         world.setObjectIdAt(tx, ty, toPlace.getGlobalId());
 
         if(toPlace.hasBlockEntity()){
-            world.setBlockEntityAt(tx, ty, BlockEntityType.create(toPlace.getId(),tx,ty));
+            BlockEntity entity = BlockEntityType.create(toPlace.getId(),tx,ty);
+            // Конвейер: автонаправление по соседней ленте (продлеваем линию)
+            if(entity instanceof BeltBlockEntity belt){
+                Direction dir = defaultBeltDirection(tx, ty);
+                if(dir != null) belt.setDirection(dir);
+            }
+            world.setBlockEntityAt(tx, ty, entity);
         }
 
         held.shrink(1);
@@ -764,6 +861,20 @@ public class PlayingState extends GameState {
         String blockId = stack.getItem().getPlaceBlock();
         if(blockId == null) return null;
         return Blocks.getByName(blockId);
+    }
+
+    // Направление новой конвейерной ленты: продолжаем линию соседа,
+    // который направлен в этот тайл. Если такого нет — null (система возьмёт дефолт).
+    private Direction defaultBeltDirection(int tx, int ty){
+        for(Direction d : Direction.values()){
+            int nx = tx + d.getOffsetX();
+            int ny = ty + d.getOffsetY();
+            if(world.getBlockEntityAt(nx, ny) instanceof BeltBlockEntity neighbor
+                    && neighbor.getDirection() == d.getOpposite()){
+                return d.getOpposite(); // сосед течёт в нас -> продолжаем его направление
+            }
+        }
+        return null;
     }
     // Пересекается ли хитбокс игрока с тайлом (tx, ty)
     private boolean playerOverlapsTile(int tx, int ty) {
@@ -795,10 +906,10 @@ public class PlayingState extends GameState {
     }
 
     private int getPlayerChunkX(){
-        return Math.floorDiv(tileFloor(playerX), Chunk.SIZE);
+        return Math.floorDiv(tileFloor(player.getX()), Chunk.SIZE);
     }
     private int getPlayerChunkY(){
-        return Math.floorDiv(tileFloor(playerY), Chunk.SIZE);
+        return Math.floorDiv(tileFloor(player.getY()), Chunk.SIZE);
     }
     // --- Масштаб интерфейса: все окна живут в "виртуальных" (UI) координатах ---
     // Как хотбар: позиции и размеры в UI-пикселях, реальный размер умножается на UI.scale.
@@ -812,12 +923,14 @@ public class PlayingState extends GameState {
     // Инвентарь игрока рисуется поверх openWindows, поэтому клик проверяем в нём первым
 
     private ItemStack sendMousePressToUi(int mx, int my, int button, boolean shift){
-        if(playerInv.isOpen()){
+        // Инвентарь игрока рисуется поверх openWindows — перехватывает клики в своей области
+        if(playerInv.isOpen() && playerInv.contains(mx, my)){
             return playerInv.mousePressed(mx, my, button, shift, cursorStack);
         }
+        // Остальные окна (сундук/машина) сверху вниз — клик достаётся окну под курсором
         for(int i = openWindows.size() - 1; i >= 0; i--){
             GuiWindow w = openWindows.get(i);
-            if(w.isOpen()){
+            if(w.isOpen() && w.contains(mx, my)){
                 return w.mousePressed(mx, my, button, shift, cursorStack);
             }
         }

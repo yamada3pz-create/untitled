@@ -1,9 +1,9 @@
 package org.example.block.Machine;
 
-public class MachineBlockEntity extends  MachineEntity{
+public class MachineBlockEntity extends MachineEntity {
 
     public MachineBlockEntity(int x, int y) {
-        super(x, y, 40);
+        super(x, y);
     }
 
     @Override
@@ -11,14 +11,6 @@ public class MachineBlockEntity extends  MachineEntity{
         return "machine";
     }
 
-    @Override
-    public boolean canCraft(){
-        return false; // Заглушка нечего не крафтит
-    }
-
-    @Override
-    public void craft(){
-        // Заглушка
-    }
+    // canCraft/craft реализованы в MachineEntity
+    // (рецепт назначается из поля "recipe" блока через resolveRecipe)
 }
-

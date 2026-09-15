@@ -138,6 +138,13 @@ public class ResourceManager {
         return DATA_PATH + File.separator + "texture" + File.separator + "block" + File.separator + blockName + ".png";
     }
 
+    // Текстура сущности (игрок и т.п.) из texture/entity
+    public static BufferedImage getEntityTexture(String name){
+        String path = DATA_PATH + File.separator + "texture" + File.separator + "entity"
+                + File.separator + name + ".png";
+        return loadAndCache(path);
+    }
+
     public static String getEntityTexturePath(String name){
         return DATA_PATH + File.separator + "texture" + File.separator + "entity" + File.separator + name + ".png";
     }

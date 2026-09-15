@@ -19,7 +19,8 @@ public class DataLoader {
         loadBlocks("data/vanilla/block");
         loadBiomes("data/vanilla/biome");
         loadModels("data/vanilla/model/block");
-        System.out.println("[DataLoader] Блоки, предметы, биомы и модели загружены.");
+        org.example.recipe.RecipeLoader.load("data/vanilla/recipes");
+        System.out.println("[DataLoader] Блоки, предметы, биомы, модели и рецепты загружены.");
     }
 
     // ── Блоки ──────────────────────────────────────────────
@@ -70,6 +71,12 @@ public class DataLoader {
         p.hasRotation(getBool(obj, "hasRotation", false));
         p.hasBlockEntity(getBool(obj, "hasBlockEntity", false));
         p.destroyTime(getFloat(obj, "destroyTime", 1.0f));
+
+        // По ТЗ: физика (collidable), слой (0/1) и скорость добычи (miningSpeedMultiplier)
+        p.collidable(getBool(obj, "collidable", getBool(obj, "isSolid", true)));
+        p.layerCode(getLayerCode(obj));
+        p.miningSpeedMultiplier(getDouble(obj, "miningSpeedMultiplier", 1.0));
+        p.recipe(getString(obj, "recipe", ""));
 
         if(obj.has("connectsToTags")){
             JsonArray arr = obj.getAsJsonArray("connectsToTags");
@@ -245,5 +252,21 @@ public class DataLoader {
     }
     private static int getInt(JsonObject obj, String key, int def){
         return obj.has(key) ? obj.get(key).getAsInt() : def;
+    }
+    private static double getDouble(JsonObject obj, String key, double def){
+        return obj.has(key) ? obj.get(key).getAsDouble() : def;
+    }
+
+    // Слой блока по ТЗ: 0 — пол/земля, 1 — объект/постройка.
+    // Принимаем и число ("layer": 1), и старые строки ("object", "overlay" -> 1; "floor", "base" -> 0).
+    private static int getLayerCode(JsonObject obj){
+        if(!obj.has("layer")) return 1;
+        JsonElement el = obj.get("layer");
+        if(el.isJsonPrimitive() && el.getAsJsonPrimitive().isNumber()) return el.getAsInt();
+        String s = getString(obj, "layer", "object");
+        switch(s){
+            case "floor": case "base": case "none": return 0;
+            default: return 1; // object / overlay / неизвестное
+        }
     }
 }

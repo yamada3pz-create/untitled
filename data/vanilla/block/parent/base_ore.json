@@ -1,7 +1,7 @@
 {
   "layer": "overlay",
-  "isSolid": false,
+  "collidable": false,
   "drillTier": 1,
-  "infinite": false,
-  "defaultAmount": 20
+  "infinite": true,
+  "miningSpeedMultiplier": 1.0
 }

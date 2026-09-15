@@ -1,0 +1,7 @@
+{
+  "input": [
+    { "id": "iron_ore", "amount": 2 }
+  ],
+  "output": { "id": "iron_plate", "amount": 1 },
+  "craftTimeTicks": 40
+}

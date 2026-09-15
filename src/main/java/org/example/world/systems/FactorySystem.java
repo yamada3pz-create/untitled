@@ -22,6 +22,12 @@ public class FactorySystem {
 
     public void tick(World world){
         for(MachineEntity m : machines){
+            // Рецепт машины могут поменять в настройках/через блок — подтягиваем из блока
+            m.resolveRecipe(world);
+
+            // Готовый выход выталкиваем: лента/сундук рядом забирают результат
+            m.ejectOutput(world);
+
             if(!m.isRunning() && m.canCraft()){
                 m.setRunning(true);
                 m.setCraftProgress(0);

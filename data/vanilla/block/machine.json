@@ -5,7 +5,9 @@
   "layer": "object",
   "isSolid": true,
   "hasRotation": true,
+  "hasBlockEntity": true,
   "infinite": false,
   "destroyTime": 1.0,
-  "drops": "machine"
+  "drops": "machine",
+  "recipe": "iron_plate"
 }

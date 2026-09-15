@@ -8,6 +8,8 @@ build/
 ### Runtime artifacts ###
 saves/
 settings.txt
+run.log
+run.err
 
 ### IntelliJ IDEA ###
 .idea/modules.xml

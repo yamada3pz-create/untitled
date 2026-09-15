@@ -32,6 +32,9 @@ public class BlockEntityType {
         if(type.equals("pipe")){
             return new PipeBlockEntity(x, y);
         }
+        if(type.equals("belt")){
+            return new BeltBlockEntity(x, y);
+        }
         if(type.equals("machine")){
             return new MachineBlockEntity(x, y);
         }
@@ -47,6 +50,7 @@ public class BlockEntityType {
     public static void init(){
         register("chest");
         register("pipe");
+        register("belt");
         register("machine");
         System.out.println("[BlockEntityType] Типы зарегистрированы.");
     }

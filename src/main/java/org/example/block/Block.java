@@ -20,6 +20,12 @@ public class Block {
     private final int defaultAmount;
     private final String drops;
 
+    // По ТЗ: физика и дроп
+    private final boolean collidable;
+    private final int layerCode;
+    private final double miningSpeedMultiplier;
+    private final String recipe;
+
     public Block(int globalId, String id, BlockProperties p){
         this.globalId = globalId;
         this.id = id;
@@ -35,6 +41,10 @@ public class Block {
         this.infinite = p.infinite;
         this.defaultAmount = p.defaultAmount;
         this.drops = p.drops;
+        this.collidable = p.collidable;
+        this.layerCode = p.layerCode;
+        this.miningSpeedMultiplier = p.miningSpeedMultiplier;
+        this.recipe = p.recipe;
     }
 
     public int getGlobalId()        { return globalId; }
@@ -52,6 +62,11 @@ public class Block {
     public boolean isInfinite()     { return infinite; }
     public int getDefaultAmount()   { return defaultAmount; }
     public String getDrops()        { return drops; }
+
+    public boolean isCollidable()        { return collidable; }
+    public int getLayerCode()            { return layerCode; }
+    public double getMiningSpeedMultiplier() { return miningSpeedMultiplier; }
+    public String getRecipe()            { return recipe; }
 
     public boolean connectsTo(Block other){
         for(String tag : connectToTags){

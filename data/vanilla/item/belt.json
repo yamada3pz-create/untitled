@@ -1,0 +1,6 @@
+{
+  "id": "belt",
+  "name": "Конвейер",
+  "maxStackSize": 64,
+  "placeBlock": "belt"
+}

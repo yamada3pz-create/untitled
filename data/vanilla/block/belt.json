@@ -1,0 +1,12 @@
+{
+  "type": "Block",
+  "id": "belt",
+  "name": "Конвейер",
+  "layer": "object",
+  "isSolid": false,
+  "hasRotation": true,
+  "hasBlockEntity": true,
+  "connectsToTags": ["belt"],
+  "collidable": false,
+  "drops": "belt"
+}

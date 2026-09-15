@@ -19,6 +19,12 @@ public class BlockProperties {
     int defaultAmount = 0;
     String drops = "";
 
+    // По ТЗ: физика и дроп
+    boolean collidable = true;
+    int layerCode = 1;                  // 0 — пол, 1 — объект
+    double miningSpeedMultiplier = 1.0; // базовый коэффициент скорости добычи
+    String recipe = "";                 // назначенный машине рецепт (id из recipes/)
+
     private BlockProperties(){}
 
     public static BlockProperties create(){
@@ -38,4 +44,8 @@ public class BlockProperties {
     public BlockProperties infinite(boolean v){ this.infinite = v; return this; }
     public BlockProperties defaultAmount(int v){ this.defaultAmount = v; return this; }
     public BlockProperties drops(String v){ this.drops = v; return this; }
+    public BlockProperties collidable(boolean v){ this.collidable = v; return this; }
+    public BlockProperties layerCode(int v){ this.layerCode = v; return this; }
+    public BlockProperties miningSpeedMultiplier(double v){ this.miningSpeedMultiplier = v; return this; }
+    public BlockProperties recipe(String v){ this.recipe = v; return this; }
 }
